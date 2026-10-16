@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createFakeMcpServer } from '../../../lib/testing/fake-mcp-server';
 import { registerPRDTools } from '../index';
-import type { PrdDeps } from '../prd.service';
+import type { PrdDeps } from '../index';
 
 const normalize = (path: string) => path.replace(/\\/g, '/');
 const basename = (path: string) => normalize(path).split('/').pop() ?? '';
@@ -82,22 +82,25 @@ describe('registerPRDTools', () => {
 
     registerPRDTools(fake.server, '/repo', createDeps());
 
-    expect(fake.tools.map((tool) => tool.name).sort()).toEqual([
-      'add_user_story',
-      'assign_story_to_phase',
-      'create_custom_phase',
-      'create_prd',
-      'delete_prd',
-      'delete_user_story',
-      'export_prd_markdown',
-      'get_implementation_prompts',
-      'get_improvement_suggestions',
-      'get_prd',
-      'get_project_status',
-      'list_prds',
-      'update_story_status',
-      'update_user_story',
-    ]);
+    // The full list belongs to @makerkit/prd; the kit checks none of its tools went missing.
+    expect(fake.tools.map((tool) => tool.name)).toEqual(
+      expect.arrayContaining([
+        'add_user_story',
+        'assign_story_to_phase',
+        'create_custom_phase',
+        'create_prd',
+        'delete_prd',
+        'delete_user_story',
+        'export_prd_markdown',
+        'get_implementation_prompts',
+        'get_improvement_suggestions',
+        'get_prd',
+        'get_project_status',
+        'list_prds',
+        'update_story_status',
+        'update_user_story',
+      ]),
+    );
 
     for (const tool of fake.tools) {
       expect(tool.config.description, tool.name).toBeTruthy();

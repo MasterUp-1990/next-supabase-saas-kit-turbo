@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { Bell, CircleAlert, Info, TriangleAlert, XIcon } from 'lucide-react';
 import { useLocale, useTranslations } from 'next-intl';
@@ -99,12 +99,6 @@ export function NotificationsPopover(params: {
 
     return text.slice(0, 1).toUpperCase() + text.slice(1);
   };
-
-  useEffect(() => {
-    return () => {
-      setNotifications([]);
-    };
-  }, []);
 
   return (
     <Popover modal open={open} onOpenChange={setOpen}>
@@ -209,7 +203,14 @@ export function NotificationsPopover(params: {
                           );
                         });
 
-                        return dismissNotification(notification.id);
+                        dismissNotification(notification.id).catch(
+                          (error: unknown) => {
+                            console.error(error);
+
+                            // the dismiss did not persist: show it again
+                            onNotifications([notification]);
+                          },
+                        );
                       }}
                     >
                       <XIcon className={'h-3'} />

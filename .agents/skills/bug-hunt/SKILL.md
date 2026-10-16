@@ -118,7 +118,7 @@ Before generating tasks, take 60 seconds to surface stack signals from the repo 
 
 - **Dependency manifest** (`package.json`, `requirements.txt`, `go.mod`, `Cargo.toml`, `pom.xml`, `Gemfile`, etc.) — what frameworks, ORMs, auth libs, queue clients, template engines are in use?
 - **Runtime / deploy config** (`Dockerfile`, `wrangler.toml`, `vercel.json`, `serverless.yml`, `*.yaml` for k8s/CI) — where is this code hosted and what are its trust assumptions?
-- **Project instructions** (`AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `README.md`) — call out any permission helpers, escalation gates, prior incidents, or "do not do X" rules. Prioritize tasks targeting those.
+- **Project instructions** (`CLAUDE.md`, `AGENTS.md`, `CONTRIBUTING.md`, `SECURITY.md`, `README.md`) — call out any permission helpers, escalation gates, prior incidents, or "do not do X" rules. Prioritize tasks targeting those.
 - **Test fixtures / migration history** — recent migrations and security-related tests often point at known-fragile areas.
 
 Translate signals into scope hints for tasks — e.g., "ORM `<name>` is used; its escape hatches are `<symbols>`; grep those" beats "look for SQL injection somewhere".
@@ -381,7 +381,7 @@ In your final user-facing message: link the report, give the count of confirmed 
 - **Editing the source code from any hunting agent.** No agent in this harness writes to source. Fixing is human-gated.
 - **Skipping the trust-boundary check.** A bug nobody can reach from outside is a code-quality issue, not a security finding. Stage 4 + Stage 7 exist for this.
 - **Looping gapfill forever.** Two passes max. Coverage gaps that survive two gapfills go into the report's "Coverage gaps" section for the next run.
-- **Adding stack-specific advice into this skill.** Repo-specific patterns live in the project's `AGENTS.md`, or as a companion skill loaded per-task. This skill is intentionally stack-agnostic.
+- **Adding stack-specific advice into this skill.** Repo-specific patterns live in the project's `CLAUDE.md` / `AGENTS.md`, or as a companion skill loaded per-task. This skill is intentionally stack-agnostic.
 
 ## When NOT to use this skill
 

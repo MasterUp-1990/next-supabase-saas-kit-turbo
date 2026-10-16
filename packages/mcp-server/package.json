@@ -34,6 +34,13 @@
     "typecheck": "tsc --noEmit",
     "test:unit": "vitest run"
   },
+  "dependencies": {
+    "@makerkit/env-inspector": "catalog:",
+    "@makerkit/i18n": "catalog:",
+    "@makerkit/mailpit": "catalog:",
+    "@makerkit/prd": "catalog:",
+    "@makerkit/repo-checks": "catalog:"
+  },
   "devDependencies": {
     "@kit/email-templates": "workspace:*",
     "@kit/tsconfig": "workspace:*",

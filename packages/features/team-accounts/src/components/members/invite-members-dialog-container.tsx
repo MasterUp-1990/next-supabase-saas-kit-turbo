@@ -52,10 +52,12 @@ type Role = string;
 const MAX_INVITES = 5;
 
 export function InviteMembersDialogContainer({
+  accountId,
   accountSlug,
   userRoleHierarchy,
   children,
 }: React.PropsWithChildren<{
+  accountId: string;
   accountSlug: string;
   userRoleHierarchy: number;
 }>) {
@@ -142,7 +144,7 @@ export function InviteMembersDialogContainer({
                 roles={roles}
                 onSubmit={(data) => {
                   execute({
-                    accountSlug,
+                    accountId,
                     invitations: data.invitations,
                   });
                 }}

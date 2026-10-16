@@ -5,7 +5,6 @@ import { resolveProjectRoot } from './resolve-root';
 import { registerComponentsTools } from './tools/components/index';
 import { registerDatabaseTools } from './tools/database/index';
 import { registerKitDbTools } from './tools/db/index';
-import { registerDepsUpgradeAdvisorTool } from './tools/deps-upgrade-advisor/index';
 import { registerKitDevTools } from './tools/dev/index';
 import { registerKitEmailTemplatesTools } from './tools/emails/index';
 import { registerKitEnvTools } from './tools/env/index';
@@ -14,8 +13,7 @@ import { registerGetMigrationsTools } from './tools/migrations/index';
 import { registerPRDTools } from './tools/prd-manager/index';
 import { registerKitPrerequisitesTool } from './tools/prerequisites/index';
 import { registerPromptsSystem } from './tools/prompts/index';
-import { registerRunChecksTool } from './tools/run-checks/index';
-import { registerScriptsTools } from './tools/scripts/index';
+import { registerRepoChecksTools } from './tools/run-checks/index';
 import { registerKitStatusTool } from './tools/status/index';
 import { registerKitTranslationsTools } from './tools/translations/index';
 
@@ -39,9 +37,7 @@ async function main() {
   registerKitTranslationsTools(server, rootPath);
   registerDatabaseTools(server, rootPath);
   registerComponentsTools(server, rootPath);
-  registerScriptsTools(server, rootPath);
-  registerRunChecksTool(server, rootPath);
-  registerDepsUpgradeAdvisorTool(server, rootPath);
+  registerRepoChecksTools(server, rootPath);
   registerPRDTools(server, rootPath);
   registerPromptsSystem(server);
 

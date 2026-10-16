@@ -21,6 +21,11 @@ catalog:
   '@lemonsqueezy/lemonsqueezy.js': 4.0.0
   '@makerkit/data-loader-supabase-core': ^0.0.10
   '@makerkit/data-loader-supabase-nextjs': ^1.2.5
+  '@makerkit/env-inspector': 0.0.1
+  '@makerkit/i18n': 0.0.1
+  '@makerkit/mailpit': 0.0.1
+  '@makerkit/prd': 0.0.1
+  '@makerkit/repo-checks': 0.0.2
   '@manypkg/cli': ^0.25.1
   '@markdoc/markdoc': 0.5.8
   '@marsidev/react-turnstile': ^1.6.2
@@ -107,6 +112,7 @@ onlyBuiltDependencies:
   - supabase
 
 minimumReleaseAgeExclude:
+  - '@makerkit/*'
   - '@base-ui/*'
   - react
   - react-dom

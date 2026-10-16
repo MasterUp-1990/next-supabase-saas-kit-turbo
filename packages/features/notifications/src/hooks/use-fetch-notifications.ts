@@ -33,15 +33,17 @@ export function useFetchNotifications({
   }, [initialNotifications, onNotifications]);
 }
 
+export const NOTIFICATIONS_QUERY_KEY = 'notifications';
+
 function useFetchInitialNotifications(props: { accountIds: string[] }) {
   const client = useSupabase();
 
   return useQuery({
-    queryKey: ['notifications', ...props.accountIds],
+    queryKey: [NOTIFICATIONS_QUERY_KEY, ...props.accountIds],
     queryFn: async () => {
       const now = new Date().toISOString();
 
-      const { data } = await client
+      const { data, error } = await client
         .from('notifications')
         .select(
           `id, 
@@ -57,6 +59,10 @@ function useFetchInitialNotifications(props: { accountIds: string[] }) {
         .gt('expires_at', now)
         .order('created_at', { ascending: false })
         .limit(10);
+
+      if (error) {
+        throw error;
+      }
 
       return data;
     },

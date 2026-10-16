@@ -9,6 +9,7 @@
   "dependencies": {
     "@faker-js/faker": "catalog:",
     "@hookform/resolvers": "catalog:",
+    "@makerkit/prd": "catalog:",
     "@tanstack/react-query": "catalog:",
     "lucide-react": "catalog:",
     "next": "catalog:",

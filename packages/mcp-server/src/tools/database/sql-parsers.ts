@@ -14,46 +14,85 @@ import type {
  * forgiving rather than a full SQL parser.
  */
 
-const IDENTIFIER = '[a-zA-Z_][a-zA-Z0-9_]*';
+const IDENTIFIER = '[a-zA-Z_][a-zA-Z0-9_$]*';
+
+/** An unquoted identifier or a double-quoted one ("User", "my ""odd"" name"). */
+const NAME = `(?:"(?:[^"]|"")+"|${IDENTIFIER})`;
+
+/** `name` or `schema.name`, capturing the schema (optional) and the name. */
+const QUALIFIED = `(?:(${NAME})\\s*\\.\\s*)?(${NAME})`;
+
+export interface QualifiedName {
+  /** Null when the SQL left the name unqualified. */
+  schema: string | null;
+  name: string;
+}
+
+export function unquoteIdentifier(value: string) {
+  return value.startsWith('"') && value.endsWith('"') && value.length > 1
+    ? value.slice(1, -1).replace(/""/g, '"')
+    : value;
+}
+
+/**
+ * Split `schema.table`, `"My Schema"."Table"` or `table` into its parts,
+ * honouring quotes so dots inside quoted names do not split them.
+ */
+export function splitQualifiedName(value: string): string[] {
+  const parts = value.match(/"(?:[^"]|"")*"|[^.]+/g) ?? [];
+
+  return parts.map((part) => unquoteIdentifier(part.trim()));
+}
+
+function matchQualified(content: string, prefix: string): QualifiedName[] {
+  const seen = new Set<string>();
+  const names: QualifiedName[] = [];
+
+  for (const match of maskSqlComments(content).matchAll(
+    new RegExp(`${prefix}${QUALIFIED}`, 'gi'),
+  )) {
+    const schema = match[1] ? unquoteIdentifier(match[1]) : null;
+    const name = unquoteIdentifier(match[2]!);
+    const key = `${schema ?? ''}.${name}`;
+
+    if (seen.has(key)) continue;
+
+    seen.add(key);
+    names.push({ schema, name });
+  }
+
+  return names;
+}
+
+const CREATE_TABLE_PREFIX =
+  'create\\s+(?:(?:global\\s+|local\\s+)?(?:temp|temporary|unlogged)\\s+)?table\\s+(?:if\\s+not\\s+exists\\s+)?';
+
+/** Tables declared in the file, with the schema they were qualified with. */
+export function extractQualifiedTableNames(content: string): QualifiedName[] {
+  return matchQualified(content, CREATE_TABLE_PREFIX);
+}
 
 export function extractTableNames(content: string): string[] {
-  return uniqueTrailingIdentifiers(
-    content.match(
-      new RegExp(
-        `create\\s+table\\s+(?:if\\s+not\\s+exists\\s+)?(?:public\\.)?(${IDENTIFIER})`,
-        'gi',
-      ),
-    ),
-  );
+  return uniqueNames(extractQualifiedTableNames(content));
 }
 
 export function extractFunctionNames(content: string): string[] {
-  return uniqueTrailingIdentifiers(
-    content.match(
-      new RegExp(
-        `create\\s+(?:or\\s+replace\\s+)?function\\s+(?:public\\.|kit\\.)?(${IDENTIFIER})`,
-        'gi',
-      ),
+  return uniqueNames(
+    matchQualified(content, 'create\\s+(?:or\\s+replace\\s+)?function\\s+'),
+  );
+}
+
+/** Tables referenced by foreign keys, leaving out Supabase's auth schema. */
+export function extractDependencies(content: string): string[] {
+  return uniqueNames(
+    matchQualified(content, 'references\\s+').filter(
+      (ref) => ref.schema !== 'auth',
     ),
   );
 }
 
-export function extractDependencies(content: string): string[] {
-  return uniqueTrailingIdentifiers(
-    content.match(
-      new RegExp(`references\\s+(?:${IDENTIFIER}\\.)?(${IDENTIFIER})`, 'gi'),
-    ),
-  ).filter((name) => name !== 'users');
-}
-
-function uniqueTrailingIdentifiers(matches: RegExpMatchArray | null) {
-  if (!matches) return [];
-
-  const names = matches
-    .map((match) => match.match(new RegExp(`(${IDENTIFIER})$`))?.[1] ?? '')
-    .filter(Boolean);
-
-  return [...new Set(names)];
+function uniqueNames(names: QualifiedName[]) {
+  return [...new Set(names.map((entry) => entry.name))];
 }
 
 /**
@@ -88,100 +127,290 @@ export function extractSectionHeader(content: string) {
   return { section, description };
 }
 
+/**
+ * The CREATE TABLE statement for `schema.tableName`. An unqualified
+ * `create table tableName` only counts when `allowUnqualified` is set, i.e.
+ * when `schema` is the schema unqualified names resolve to.
+ */
 export function extractTableDefinition(
   content: string,
   schema: string,
   tableName: string,
+  allowUnqualified = true,
 ): string | null {
+  const schemaPart = `${identifierPattern(schema)}\\s*\\.\\s*`;
   const tableRegex = new RegExp(
-    `create\\s+table\\s+(?:if\\s+not\\s+exists\\s+)?(?:${escapeRegex(schema)}\\.)?${escapeRegex(tableName)}\\s*\\([^;]*?\\);`,
-    'gis',
+    `\\b${CREATE_TABLE_PREFIX}` +
+      (allowUnqualified ? `(?:${schemaPart})?` : schemaPart) +
+      `${identifierPattern(tableName)}\\s*\\(`,
+    'gi',
   );
 
-  return content.match(tableRegex)?.[0] ?? null;
+  const masked = maskSqlComments(content);
+
+  for (const match of masked.matchAll(tableRegex)) {
+    const open = match.index + match[0].length - 1;
+    const close = findClosingParen(masked, open);
+
+    if (close === -1) continue;
+
+    // The statement runs on to its semicolon (INHERITS, PARTITION BY, ...).
+    const semicolon = findTopLevel(masked, ';', close);
+    const end = semicolon === -1 ? close + 1 : semicolon + 1;
+
+    // Sliced from the original so the statement keeps its comments.
+    return content.slice(match.index, end);
+  }
+
+  return null;
 }
 
-export function parseColumns(tableDefinition: string): TableColumn[] {
-  const contentMatch = tableDefinition.match(/\(([\s\S]*)\)/);
+/** Matches an identifier written bare or double-quoted. */
+function identifierPattern(name: string) {
+  const quoted = escapeRegex(name.replace(/"/g, '""'));
 
-  if (!contentMatch) return [];
+  return /^[a-zA-Z_][a-zA-Z0-9_$]*$/.test(name)
+    ? `(?:"${quoted}"|${escapeRegex(name)})`
+    : `"${quoted}"`;
+}
+
+/** Words that start a table constraint rather than a column definition. */
+const TABLE_CONSTRAINT_STARTS = new Set([
+  'constraint',
+  'primary',
+  'foreign',
+  'unique',
+  'check',
+  'exclude',
+  'like',
+]);
+
+/** Words that end a column's type or default expression. */
+const COLUMN_CONSTRAINT_KEYWORDS = new Set([
+  'constraint',
+  'not',
+  'null',
+  'default',
+  'primary',
+  'references',
+  'unique',
+  'check',
+  'generated',
+  'collate',
+  'deferrable',
+  'initially',
+]);
+
+export function parseColumns(tableDefinition: string): TableColumn[] {
+  const masked = maskSqlComments(tableDefinition);
+  const open = masked.indexOf('(');
+  const close = open === -1 ? -1 : findClosingParen(masked, open);
+
+  if (close === -1) return [];
 
   const columns: TableColumn[] = [];
 
-  const lines = contentMatch[1]!
-    .split('\n')
-    .map((line) => line.trim())
-    .filter(Boolean);
+  // Split on top-level commas, not lines, so one-line definitions and
+  // types such as numeric(10, 2) parse too.
+  for (const item of splitTopLevel(masked.slice(open + 1, close))) {
+    const tokens = tokenize(item);
+    const first = tokens[0];
 
-  for (const line of lines) {
-    const lower = line.toLowerCase();
-
-    if (
-      lower.startsWith('constraint') ||
-      lower.startsWith('primary key') ||
-      lower.startsWith('foreign key') ||
-      lower.startsWith('unique') ||
-      lower.startsWith('check')
-    ) {
+    if (!first || TABLE_CONSTRAINT_STARTS.has(keywordOf(first) ?? '')) {
       continue;
     }
 
-    const columnMatch = line.match(
-      new RegExp(`^(${IDENTIFIER})\\s+([^,\\s]+)(?:\\s+(.*))?`),
-    );
+    if (!new RegExp(`^${NAME}$`).test(first)) continue;
 
-    if (!columnMatch) continue;
+    const column = parseColumnTokens(tokens.slice(1));
 
-    const [, name, type, constraints = ''] = columnMatch;
-    const lowerConstraints = constraints.toLowerCase();
+    if (!column) continue;
 
-    columns.push({
-      name: name!,
-      type: type!.replace(/,$/, ''),
-      nullable:
-        !lowerConstraints.includes('not null') &&
-        !lowerConstraints.includes('primary key'),
-      defaultValue: constraints.match(/default\s+([^,\s]+)/i)?.[1],
-      isPrimaryKey: lowerConstraints.includes('primary key'),
-      isForeignKey: lowerConstraints.includes('references'),
-      referencedTable: constraints.match(
-        new RegExp(`references\\s+(?:public\\.)?(${IDENTIFIER})`, 'i'),
-      )?.[1],
-      referencedColumn: constraints
-        .match(
-          new RegExp(
-            `references\\s+(?:public\\.)?${IDENTIFIER}\\s*\\(([^)]+)\\)`,
-            'i',
-          ),
-        )?.[1]
-        ?.trim(),
-    });
+    columns.push({ name: unquoteIdentifier(first), ...column });
   }
 
   return columns;
+}
+
+/** Type and constraints of one column, read token by token. */
+function parseColumnTokens(tokens: string[]): Omit<TableColumn, 'name'> | null {
+  let index = 0;
+  const type: string[] = [];
+
+  while (index < tokens.length && !isColumnKeyword(tokens[index]!)) {
+    type.push(tokens[index++]!);
+  }
+
+  if (type.length === 0) return null;
+
+  let notNull = false;
+  let isPrimaryKey = false;
+  let isForeignKey = false;
+  let defaultValue: string | undefined;
+  let referencedTable: string | undefined;
+  let referencedColumn: string | undefined;
+
+  while (index < tokens.length) {
+    const token = tokens[index]!;
+    const keyword = keywordOf(token);
+    const next = tokens[index + 1]?.toLowerCase();
+
+    index++;
+
+    if (keyword === 'not' && next === 'null') {
+      notNull = true;
+      index++;
+    } else if (keyword === 'primary' && next === 'key') {
+      isPrimaryKey = true;
+      index++;
+    } else if (keyword === 'constraint' || keyword === 'collate') {
+      index++;
+    } else if (keyword === 'check' && token.length === keyword.length) {
+      index++;
+    } else if (keyword === 'default') {
+      const expression: string[] = [];
+
+      while (index < tokens.length && !isColumnKeyword(tokens[index]!)) {
+        expression.push(tokens[index++]!);
+      }
+
+      // `default null` is the one keyword a default can be.
+      if (
+        expression.length === 0 &&
+        keywordOf(tokens[index] ?? '') === 'null'
+      ) {
+        expression.push(tokens[index++]!);
+      }
+
+      if (expression.length > 0) defaultValue = expression.join(' ');
+    } else if (keyword === 'generated') {
+      // GENERATED ALWAYS AS (expr) STORED / ... AS IDENTITY [(options)]
+      while (index < tokens.length) {
+        const word = keywordOf(tokens[index++]!);
+
+        if (word === 'stored') break;
+
+        if (word === 'identity') {
+          if (tokens[index]?.startsWith('(')) index++;
+          break;
+        }
+      }
+    } else if (keyword === 'references') {
+      isForeignKey = true;
+
+      const target = tokens[index++] ?? '';
+      const match = target.match(
+        new RegExp(`^${QUALIFIED}\\s*(?:\\(([\\s\\S]*)\\))?$`),
+      );
+
+      referencedTable = optionalUnquote(match?.[2]);
+
+      let columnList = match?.[3];
+
+      if (columnList === undefined && tokens[index]?.startsWith('(')) {
+        columnList = tokens[index++]!.slice(1, -1);
+      }
+
+      referencedColumn = optionalUnquote(columnList?.trim() || undefined);
+
+      // MATCH FULL, ON DELETE SET NULL, ON UPDATE NO ACTION, ...
+      while (index < tokens.length) {
+        const word = keywordOf(tokens[index]!);
+
+        if (word === 'match') {
+          index += 2;
+        } else if (word === 'on') {
+          const action = keywordOf(tokens[index + 2] ?? '');
+
+          index += action === 'set' || action === 'no' ? 4 : 3;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  return {
+    type: type.join(' '),
+    nullable: !notNull && !isPrimaryKey,
+    defaultValue,
+    isPrimaryKey,
+    isForeignKey,
+    referencedTable,
+    referencedColumn,
+  };
+}
+
+/**
+ * Split a column definition on whitespace, keeping quoted text and
+ * parenthesised groups whole: `numeric(10, 2)`, `now()`, `'a b'`,
+ * `"My Column"` and `(x > 0)` are one token each.
+ */
+function tokenize(value: string): string[] {
+  const tokens: string[] = [];
+  let index = 0;
+
+  while (index < value.length) {
+    if (/\s/.test(value[index]!)) {
+      index++;
+      continue;
+    }
+
+    const start = index;
+
+    while (index < value.length && !/\s/.test(value[index]!)) {
+      const char = value[index]!;
+
+      if (char === "'" || char === '"') {
+        index = skipQuoted(value, index);
+      } else if (char === '(') {
+        const close = findClosingParen(value, index);
+
+        index = close === -1 ? value.length : close + 1;
+      } else {
+        index++;
+      }
+    }
+
+    tokens.push(value.slice(start, index));
+  }
+
+  return tokens;
+}
+
+/** The leading bare word of a token (`check` for `check(x > 0)`), lowercased. */
+function keywordOf(token: string) {
+  return token.match(/^([a-z_]+)(?:\(|$)/i)?.[1]?.toLowerCase();
+}
+
+function isColumnKeyword(token: string) {
+  return COLUMN_CONSTRAINT_KEYWORDS.has(keywordOf(token) ?? '');
 }
 
 export function parseForeignKeys(tableDefinition: string): TableForeignKey[] {
   const foreignKeys: TableForeignKey[] = [];
 
   const fkRegex = new RegExp(
-    `foreign\\s+key\\s*\\(([^)]+)\\)\\s*references\\s+(?:public\\.)?(${IDENTIFIER})\\s*\\(([^)]+)\\)(?:\\s+on\\s+delete\\s+([a-z\\s]+?))?(?:\\s+on\\s+update\\s+([a-z\\s]+?))?(?=,|\\)|$)`,
+    `foreign\\s+key\\s*\\(([^)]+)\\)\\s*references\\s+(?:${NAME}\\s*\\.\\s*)?(${NAME})\\s*\\(([^)]+)\\)(?:\\s+on\\s+delete\\s+([a-z\\s]+?))?(?:\\s+on\\s+update\\s+([a-z\\s]+?))?(?=\\s*(?:,|\\)|$))`,
     'gi',
   );
 
   let match: RegExpExecArray | null;
 
-  while ((match = fkRegex.exec(tableDefinition)) !== null) {
-    const [, columns, referencedTable, referencedColumns, onDelete, onUpdate] =
+  const masked = maskSqlComments(tableDefinition);
+
+  while ((match = fkRegex.exec(masked)) !== null) {
+    const [, columns, quotedTable, referencedColumns, onDelete, onUpdate] =
       match;
 
-    const columnList = splitList(columns!);
+    const columnList = splitList(columns!).map(unquoteIdentifier);
+    const referencedTable = unquoteIdentifier(quotedTable!);
 
     foreignKeys.push({
       name: `fk_${referencedTable}_${columnList.join('_')}`,
       columns: columnList,
-      referencedTable: referencedTable!,
-      referencedColumns: splitList(referencedColumns!),
+      referencedTable,
+      referencedColumns: splitList(referencedColumns!).map(unquoteIdentifier),
       onDelete: onDelete?.trim(),
       onUpdate: onUpdate?.trim(),
     });
@@ -190,29 +419,68 @@ export function parseForeignKeys(tableDefinition: string): TableForeignKey[] {
   return foreignKeys;
 }
 
-export function parseIndexes(content: string, tableName: string): TableIndex[] {
+/**
+ * Indexes created on `tableName`. With `schema`, indexes on a same-named
+ * table qualified with another schema are left out; unqualified ones count
+ * when `allowUnqualified` is set.
+ */
+export function parseIndexes(
+  content: string,
+  tableName: string,
+  schema?: string,
+  allowUnqualified = true,
+): TableIndex[] {
   const indexes: TableIndex[] = [];
 
   const indexRegex = new RegExp(
-    `create\\s+(unique\\s+)?index\\s+(?:if\\s+not\\s+exists\\s+)?(${IDENTIFIER})\\s+on\\s+(?:public\\.)?${escapeRegex(tableName)}\\s*(?:using\\s+(\\w+)\\s*)?\\(([^)]+)\\)`,
+    `create\\s+(unique\\s+)?index\\s+(?:concurrently\\s+)?(?:if\\s+not\\s+exists\\s+)?(${NAME})\\s+on\\s+(?:only\\s+)?(?:(${NAME})\\s*\\.\\s*)?${identifierPattern(tableName)}\\s*(?:using\\s+(\\w+)\\s*)?\\(([^)]+)\\)`,
     'gi',
   );
 
   let match: RegExpExecArray | null;
 
-  while ((match = indexRegex.exec(content)) !== null) {
-    const [fullMatch, unique, indexName, method, columns] = match;
+  const masked = maskSqlComments(content);
+
+  while ((match = indexRegex.exec(masked)) !== null) {
+    const [fullMatch, unique, indexName, indexSchema, method, columns] = match;
+
+    if (schema !== undefined) {
+      const matches = indexSchema
+        ? unquoteIdentifier(indexSchema) === schema
+        : allowUnqualified;
+
+      if (!matches) continue;
+    }
 
     indexes.push({
-      name: indexName!,
-      columns: splitList(columns!),
+      name: unquoteIdentifier(indexName!),
+      columns: splitList(columns!).map(unquoteIdentifier),
       unique: Boolean(unique),
       type: method?.toLowerCase() ?? 'btree',
-      definition: fullMatch,
+      definition: content.slice(match.index, match.index + fullMatch.length),
     });
   }
 
   return indexes;
+}
+
+export interface EnumDefinition extends QualifiedName {
+  values: string[];
+}
+
+export function parseEnumDefinitions(content: string): EnumDefinition[] {
+  const enumRegex = new RegExp(
+    `create\\s+type\\s+${QUALIFIED}\\s+as\\s+enum\\s*\\(([^)]*)\\)`,
+    'gi',
+  );
+
+  return [...maskSqlComments(content).matchAll(enumRegex)].map((match) => ({
+    schema: match[1] ? unquoteIdentifier(match[1]) : null,
+    name: unquoteIdentifier(match[2]!),
+    values: [...match[3]!.matchAll(/'((?:[^']|'')*)'/g)].map((value) =>
+      value[1]!.replace(/''/g, "'"),
+    ),
+  }));
 }
 
 export function parseEnums(
@@ -221,21 +489,8 @@ export function parseEnums(
 ): Record<string, EnumInfo> {
   const enums: Record<string, EnumInfo> = {};
 
-  const enumRegex = new RegExp(
-    `create\\s+type\\s+(?:public\\.)?(${IDENTIFIER})\\s+as\\s+enum\\s*\\(([^)]+)\\)`,
-    'gi',
-  );
-
-  let match: RegExpExecArray | null;
-
-  while ((match = enumRegex.exec(content)) !== null) {
-    const [, enumName, values] = match;
-
-    enums[enumName!] = {
-      name: enumName!,
-      values: splitList(values!).map((value) => value.replace(/['"]/g, '')),
-      sourceFile,
-    };
+  for (const { name, values } of parseEnumDefinitions(content)) {
+    enums[name] = { name, values, sourceFile };
   }
 
   return enums;
@@ -244,20 +499,32 @@ export function parseEnums(
 export function extractFunctionsFromContent(
   content: string,
   sourceFile: string,
+  defaultSchema = 'public',
 ): DatabaseFunction[] {
   const functions: DatabaseFunction[] = [];
 
-  // Capture everything between "returns" and the body delimiter, then pick
-  // the header apart: modifiers may sit on the same line or on their own.
-  const functionRegex =
-    /create\s+(?:or\s+replace\s+)?function\s+([a-zA-Z_][a-zA-Z0-9_.]*)\s*\(([^)]*)\)\s*returns?\s+([^$]*?)\$\$([^$]*)\$\$/gi;
+  // Capture everything between "returns" and the body, then pick the header
+  // apart: modifiers may sit on the same line or on their own. Bodies may use
+  // any dollar-quote tag ($$, $function$) and contain $1-style parameters.
+  // Neither the parameter list nor the header can contain ";", which keeps a
+  // function without a dollar-quoted body from swallowing the next one.
+  const functionRegex = new RegExp(
+    `create\\s+(?:or\\s+replace\\s+)?function\\s+${QUALIFIED}\\s*\\(([^;]*?)\\)\\s*returns?\\s+([^;]*?)\\$(\\w*)\\$([\\s\\S]*?)\\$\\5\\$`,
+    'gi',
+  );
+
+  // Matched on the masked text; the description and body come from the
+  // original, whose offsets are the same.
+  const masked = maskSqlComments(content);
 
   let match: RegExpExecArray | null;
 
-  while ((match = functionRegex.exec(content)) !== null) {
-    const [, fullName, params, header, body] = match;
+  while ((match = functionRegex.exec(masked)) !== null) {
+    const [fullMatch, quotedSchema, quotedName, params, header, tag] = match;
+    const bodyEnd = match.index + fullMatch.length - `$${tag}$`.length;
+    const body = content.slice(bodyEnd - (match[6]?.length ?? 0), bodyEnd);
 
-    if (!fullName || !header) continue;
+    if (!quotedName || !header) continue;
 
     const returnType = header
       .split(
@@ -271,16 +538,15 @@ export function extractFunctionsFromContent(
       ? 'definer'
       : 'invoker';
 
-    const nameParts = fullName.split('.');
-    const functionName = nameParts[nameParts.length - 1]!;
-    const schema = nameParts.length > 1 ? nameParts[0]! : 'public';
+    const functionName = unquoteIdentifier(quotedName);
+    const schema = quotedSchema
+      ? unquoteIdentifier(quotedSchema)
+      : defaultSchema;
 
-    const before = content.substring(
-      Math.max(0, match.index - 500),
-      match.index,
+    const description = extractDescription(
+      content.substring(0, match.index),
+      body,
     );
-
-    const description = extractDescription(before, body ?? '');
 
     functions.push({
       name: functionName,
@@ -306,19 +572,21 @@ export function parseParameterList(paramString: string): FunctionParameter[] {
 
   const parameters: FunctionParameter[] = [];
 
-  for (const raw of splitList(paramString)) {
+  for (const raw of splitTopLevel(paramString)) {
     const match = raw.match(
       new RegExp(
-        `^(?:(?:IN|OUT|INOUT|VARIADIC)\\s+)?(${IDENTIFIER})\\s+([^=]+?)(?:\\s+DEFAULT\\s+(.+))?$`,
-        'i',
+        `^(?:(?:IN|OUT|INOUT|VARIADIC)\\s+)?(${NAME})\\s+(.+?)(?:\\s+DEFAULT\\s+|\\s*=\\s*)(.+)$|^(?:(?:IN|OUT|INOUT|VARIADIC)\\s+)?(${NAME})\\s+(.+)$`,
+        'is',
       ),
     );
 
     if (match) {
-      const [, name, type, defaultValue] = match;
+      const name = match[1] ?? match[4]!;
+      const type = match[2] ?? match[5]!;
+      const defaultValue = match[3];
 
       parameters.push({
-        name: name!.trim(),
+        name: unquoteIdentifier(name.trim()),
         type: type!.trim(),
         defaultValue: defaultValue?.trim(),
       });
@@ -339,12 +607,34 @@ export function parseParameterList(paramString: string): FunctionParameter[] {
   return parameters;
 }
 
+/**
+ * The `--` comment lines directly above the function (blank lines allowed in
+ * between), else the first comment inside the body. A comment further up
+ * belongs to whatever statement it sits on.
+ */
 function extractDescription(beforeFunction: string, body: string): string {
-  const commentMatch = beforeFunction.match(/--\s*(.+?)(?:\n|$)/);
+  const lines = beforeFunction.split('\n');
 
-  if (commentMatch?.[1]) {
-    return commentMatch[1].trim();
+  // The text before the match ends with the partial line holding "create".
+  if (lines[lines.length - 1]!.trim() === '') lines.pop();
+
+  const comments: string[] = [];
+
+  for (let index = lines.length - 1; index >= 0; index--) {
+    const line = lines[index]!.trim();
+
+    if (line === '' && comments.length === 0) continue;
+
+    const comment = line.match(/^--\s*(.*)$/);
+
+    if (!comment) break;
+
+    comments.unshift(comment[1]!.trim());
   }
+
+  const leading = comments.find(Boolean);
+
+  if (leading) return leading;
 
   const bodyCommentMatch = body.match(/--\s*(.+?)(?:\n|$)/);
 
@@ -396,7 +686,8 @@ export function derivePurpose(description: string, functionName: string) {
   return `Custom database function: ${description}`;
 }
 
-const FILE_TOPIC_MAP: Record<string, string> = {
+/** Topic of each schema file this kit ships. */
+export const FILE_TOPIC_MAP: Record<string, string> = {
   '00-privileges.sql': 'security',
   '01-enums.sql': 'types',
   '02-config.sql': 'configuration',
@@ -462,6 +753,156 @@ function splitList(value: string) {
     .split(',')
     .map((item) => item.trim())
     .filter(Boolean);
+}
+
+/** Split on commas that are not inside parentheses or quotes. */
+function splitTopLevel(value: string) {
+  const items: string[] = [];
+  let start = 0;
+  let index = 0;
+
+  while (index < value.length) {
+    const char = value[index]!;
+
+    if (char === "'" || char === '"') {
+      index = skipQuoted(value, index);
+    } else if (char === '(') {
+      const close = findClosingParen(value, index);
+
+      index = close === -1 ? value.length : close + 1;
+    } else {
+      if (char === ',') {
+        items.push(value.slice(start, index));
+        start = index + 1;
+      }
+
+      index++;
+    }
+  }
+
+  items.push(value.slice(start));
+
+  return items.map((item) => item.trim()).filter(Boolean);
+}
+
+/**
+ * Blank out `-- line` and `/* block *\/` comments (block comments nest in
+ * Postgres), leaving string literals and quoted identifiers alone. The
+ * result has the same length and line breaks as the input, so offsets
+ * found in it point at the same text in the original.
+ */
+export function maskSqlComments(sql: string): string {
+  let result = '';
+  let index = 0;
+
+  while (index < sql.length) {
+    const char = sql[index]!;
+    const next = sql[index + 1];
+    let end: number;
+
+    if (char === "'" || char === '"') {
+      end = skipQuoted(sql, index);
+      result += sql.slice(index, end);
+    } else if (char === '-' && next === '-') {
+      end = sql.indexOf('\n', index);
+      end = end === -1 ? sql.length : end;
+      result += ' '.repeat(end - index);
+    } else if (char === '/' && next === '*') {
+      end = skipBlockComment(sql, index);
+      result += sql.slice(index, end).replace(/[^\n]/g, ' ');
+    } else {
+      end = index + 1;
+      result += char;
+    }
+
+    index = end;
+  }
+
+  return result;
+}
+
+function skipBlockComment(sql: string, start: number) {
+  let depth = 0;
+  let index = start;
+
+  while (index < sql.length) {
+    if (sql.startsWith('/*', index)) {
+      depth++;
+      index += 2;
+    } else if (sql.startsWith('*/', index)) {
+      depth--;
+      index += 2;
+
+      if (depth === 0) return index;
+    } else {
+      index++;
+    }
+  }
+
+  return sql.length;
+}
+
+/** Index just past the quoted text starting at `start` ('' and "" escape). */
+function skipQuoted(sql: string, start: number) {
+  const quote = sql[start]!;
+  let index = start + 1;
+
+  while (index < sql.length) {
+    if (sql[index] === quote) {
+      if (sql[index + 1] === quote) {
+        index += 2;
+        continue;
+      }
+
+      return index + 1;
+    }
+
+    index++;
+  }
+
+  return sql.length;
+}
+
+/** Index of the parenthesis closing the one at `open`, or -1. */
+function findClosingParen(sql: string, open: number) {
+  let depth = 0;
+  let index = open;
+
+  while (index < sql.length) {
+    const char = sql[index]!;
+
+    if (char === "'" || char === '"') {
+      index = skipQuoted(sql, index);
+      continue;
+    }
+
+    if (char === '(') depth++;
+
+    if (char === ')' && --depth === 0) return index;
+
+    index++;
+  }
+
+  return -1;
+}
+
+/** Index of the first `target` at or after `from` outside quotes, or -1. */
+function findTopLevel(sql: string, target: string, from: number) {
+  let index = from;
+
+  while (index < sql.length) {
+    const char = sql[index]!;
+
+    if (char === target) return index;
+
+    index = char === "'" || char === '"' ? skipQuoted(sql, index) : index + 1;
+  }
+
+  return -1;
+}
+
+function optionalUnquote(value: string | undefined) {
+  return value === undefined ? undefined : unquoteIdentifier(value);
 }
 
 function escapeRegex(value: string) {

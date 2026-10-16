@@ -305,7 +305,75 @@ describe('DatabaseService tables', () => {
 
     await expect(
       service.getTableInfo({ schema: 'public', tableName: 'nope' }),
-    ).rejects.toThrow(/not found in schema files/);
+    ).rejects.toThrow(
+      'Table public.nope not found in the database or the schema files',
+    );
+  });
+
+  it('describes a table that exists only in the database', async () => {
+    const service = createDatabaseService(
+      createDeps(undefined, async (text, params) => {
+        expect(params).toEqual(['public', 'audit_log']);
+
+        if (text.includes('information_schema.columns')) {
+          return [
+            {
+              column_name: 'id',
+              data_type: 'bigint',
+              is_nullable: 'NO',
+              column_default: null,
+              is_primary_key: true,
+              is_foreign_key: false,
+              referenced_table: null,
+              referenced_column: null,
+            },
+          ];
+        }
+
+        return [];
+      }),
+    );
+
+    const info = await service.getTableInfo({
+      schema: 'public',
+      tableName: 'audit_log',
+    });
+
+    expect(info).toMatchObject({
+      name: 'audit_log',
+      schema: 'public',
+      sourceFile: 'database',
+      topic: 'general',
+      createStatement: '',
+      source: 'database',
+      foreignKeys: [],
+      indexes: [],
+    });
+    expect(info.columns.map((column) => column.name)).toEqual(['id']);
+  });
+
+  it('uses the schema files alone when the database lacks the table', async () => {
+    // Reachable database, no such table: every catalog query returns no rows.
+    const service = createDatabaseService(
+      createDeps(undefined, async () => []),
+    );
+
+    const info = await service.getTableInfo({
+      schema: 'public',
+      tableName: 'notes',
+    });
+
+    expect(info.source).toBe('schema_files');
+    expect(info.sourceFile).toBe('20-notes.sql');
+    expect(info.columns.map((column) => column.name)).toEqual([
+      'id',
+      'account_id',
+      'title',
+    ]);
+    expect(info.columns[1]).toMatchObject({
+      isForeignKey: true,
+      referencedTable: 'accounts',
+    });
   });
 });
 
@@ -340,5 +408,205 @@ describe('DatabaseService enums and summary', () => {
       accounts: ['accounts'],
       general: ['notes'],
     });
+  });
+});
+
+describe('DatabaseService schema handling offline', () => {
+  const MULTI_SCHEMA_SQL = `
+create type public.status as enum ('on', 'off');
+create type kit.status as enum ('kit_on');
+
+create table kit.settings (id uuid primary key, value text);
+create table other.hidden (id uuid primary key);
+create table kit.accounts (id uuid primary key, kit_column text);
+create table public."User" (id uuid primary key, "displayName" text);
+
+create or replace function other.hidden_fn() returns void language sql as $$ select 1; $$;
+`;
+
+  const files = {
+    '03-accounts.sql': ACCOUNTS_SQL,
+    '10-multi.sql': MULTI_SCHEMA_SQL,
+  };
+
+  it('lists file tables under the schema they declare, within public and kit', async () => {
+    const service = createDatabaseService(createDeps(files));
+    const { tables } = await service.getTables();
+
+    expect(tables.map((table) => `${table.schema}.${table.name}`)).toEqual([
+      'public.accounts',
+      'kit.settings',
+      'kit.accounts',
+      'public.User',
+    ]);
+  });
+
+  it('does not describe public.accounts with kit.accounts columns', async () => {
+    const service = createDatabaseService(createDeps(files));
+
+    const kit = await service.getTableInfo({
+      schema: 'kit',
+      tableName: 'accounts',
+    });
+    expect(kit.columns.map((column) => column.name)).toEqual([
+      'id',
+      'kit_column',
+    ]);
+
+    const pub = await service.getTableInfo({
+      schema: 'public',
+      tableName: 'accounts',
+    });
+    expect(pub.columns.map((column) => column.name)).toEqual(['id', 'name']);
+  });
+
+  it('accepts schema-qualified and quoted table names', async () => {
+    const service = createDatabaseService(createDeps(files));
+
+    // The schema in tableName wins over the (defaulted) schema field.
+    const kit = await service.getTableInfo({
+      schema: 'public',
+      tableName: 'kit.settings',
+    });
+    expect(kit).toMatchObject({ schema: 'kit', name: 'settings' });
+
+    const user = await service.getTableInfo({
+      schema: 'public',
+      tableName: 'public."User"',
+    });
+    expect(user).toMatchObject({ schema: 'public', name: 'User' });
+    expect(user.columns.map((column) => column.name)).toEqual([
+      'id',
+      'displayName',
+    ]);
+  });
+
+  it('leaves functions outside public and kit out of the fallback', async () => {
+    const service = createDatabaseService(createDeps(files));
+    const { functions } = await service.getFunctions();
+
+    expect(functions.map((fn) => fn.name)).toEqual(['has_role_on_account']);
+  });
+
+  it('lists public enums only and resolves schema-qualified enum names', async () => {
+    const service = createDatabaseService(createDeps(files));
+
+    expect((await service.listEnums()).enums).toEqual([
+      { name: 'status', values: ['on', 'off'], sourceFile: '10-multi.sql' },
+    ]);
+    expect(
+      (await service.getEnumInfo({ enumName: 'public.status' })).values,
+    ).toEqual(['on', 'off']);
+    await expect(
+      service.getEnumInfo({ enumName: 'kit.status' }),
+    ).rejects.toThrow(/not found/);
+  });
+});
+
+describe('DatabaseService live catalog rows', () => {
+  it('groups enums by schema and name', async () => {
+    let enumQuery = '';
+
+    const service = createDatabaseService(
+      createDeps(undefined, async (text) => {
+        if (text.includes('pg_enum')) {
+          enumQuery = text;
+
+          return [
+            {
+              schema_name: 'public',
+              enum_name: 'status',
+              enum_values: ['on', 'off'],
+            },
+          ];
+        }
+
+        throw new Error('unexpected query');
+      }),
+    );
+
+    expect((await service.listEnums()).enums).toEqual([
+      { name: 'status', values: ['on', 'off'], sourceFile: 'database' },
+    ]);
+    expect(enumQuery).toMatch(/GROUP BY n\.nspname, t\.typname/);
+    expect(
+      (await service.getEnumInfo({ enumName: 'public.status' })).values,
+    ).toEqual(['on', 'off']);
+  });
+
+  it('reads keys from pg_constraint and index keys in order', async () => {
+    const queries: string[] = [];
+
+    const service = createDatabaseService(
+      createDeps(undefined, async (text) => {
+        queries.push(text);
+
+        if (text.includes('information_schema.columns')) {
+          return [
+            {
+              column_name: 'account_id',
+              data_type: 'uuid',
+              is_nullable: 'NO',
+              column_default: null,
+              is_primary_key: false,
+              is_foreign_key: true,
+              referenced_table: 'accounts',
+              referenced_column: 'id',
+            },
+          ];
+        }
+
+        if (text.includes("con.contype = 'f'") && text.includes('GROUP BY')) {
+          // postgres.js returns text[] columns as arrays.
+          return [
+            {
+              constraint_name: 'notes_account_fk',
+              columns: ['account_id', 'owner_id'],
+              foreign_table_name: 'accounts',
+              foreign_columns: ['id', 'primary_owner_user_id'],
+              delete_rule: 'CASCADE',
+              update_rule: 'NO ACTION',
+            },
+          ];
+        }
+
+        if (text.includes('pg_index')) {
+          return [
+            {
+              indexname: 'ix_notes_expr',
+              indexdef:
+                'CREATE INDEX ix_notes_expr ON public.notes (lower(title), account_id)',
+              is_unique: false,
+              method: 'btree',
+              columns: ['lower(title)', 'account_id'],
+            },
+          ];
+        }
+
+        return [];
+      }),
+    );
+
+    const info = await service.getTableInfo({
+      schema: 'public',
+      tableName: 'notes',
+    });
+
+    expect(info.foreignKeys).toEqual([
+      {
+        name: 'notes_account_fk',
+        columns: ['account_id', 'owner_id'],
+        referencedTable: 'accounts',
+        referencedColumns: ['id', 'primary_owner_user_id'],
+        onDelete: 'CASCADE',
+        onUpdate: 'NO ACTION',
+      },
+    ]);
+    expect(info.indexes[0]?.columns).toEqual(['lower(title)', 'account_id']);
+
+    const sql = queries.join('\n');
+    expect(sql).toMatch(/unnest\(con\.conkey, con\.confkey\)/);
+    expect(sql).toMatch(/NOT ix\.indisprimary/);
+    expect(sql).not.toMatch(/_pkey/);
   });
 });

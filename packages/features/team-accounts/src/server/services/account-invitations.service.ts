@@ -134,21 +134,25 @@ class AccountInvitationsService {
   /**
    * @name sendInvitations
    * @description Sends invitations to join a team.
-   * @param accountSlug
+   * @param accountId - The team the caller was authorized for.
+   * @param accountSlug - That team's current slug; the SQL functions below are keyed by slug.
    * @param invitations
    */
   async sendInvitations({
+    accountId,
     accountSlug,
     invitations,
     invitedBy,
   }: {
     invitations: z.output<typeof InviteMembersSchema>['invitations'];
+    accountId: string;
     accountSlug: string;
     invitedBy: string;
   }) {
     const logger = await getLogger();
 
     const ctx = {
+      accountId,
       accountSlug,
       name: this.namespace,
     };
@@ -176,7 +180,7 @@ class AccountInvitationsService {
     const accountResponse = await this.client
       .from('accounts')
       .select('name')
-      .eq('slug', accountSlug)
+      .eq('id', accountId)
       .single();
 
     if (!accountResponse.data) {
@@ -209,6 +213,37 @@ class AccountInvitationsService {
     const responseInvitations = Array.isArray(response.data)
       ? response.data
       : [response.data];
+
+    // The RPC resolves the team from the slug at insert time. If a rename moved
+    // the slug to another team since the caller was authorized, the rows landed
+    // there: remove them before any invitation email goes out.
+    const misplaced = responseInvitations.filter(
+      (invitation) => invitation.account_id !== accountId,
+    );
+
+    if (misplaced.length) {
+      logger.error(
+        { ...ctx, misplacedAccountIds: misplaced.map((i) => i.account_id) },
+        'Team slug changed while sending invitations. Removing them.',
+      );
+
+      const { error } = await this.client
+        .from('invitations')
+        .delete()
+        .in(
+          'id',
+          misplaced.map((invitation) => invitation.id),
+        );
+
+      if (error) {
+        logger.error(
+          { ...ctx, error },
+          'Failed to remove misplaced invitations',
+        );
+      }
+
+      throw new Error('Team slug changed while sending invitations');
+    }
 
     logger.info(
       {

@@ -234,7 +234,7 @@ export function registerDatabaseTools(
     {
       title: 'Describe a table',
       description:
-        'Columns, foreign keys, indexes and the CREATE TABLE statement for one table. Live database data when available, schema-file parsing otherwise.',
+        'Columns, foreign keys, indexes and the CREATE TABLE statement for one table (tableName may be schema.table). Live database data when available, schema-file parsing otherwise.',
       inputSchema: GetTableInfoInputSchema,
       outputSchema: GetTableInfoOutputSchema,
       annotations: READ_ONLY_TOOL,
@@ -254,7 +254,8 @@ export function registerDatabaseTools(
     'get_enum_info',
     {
       title: 'Describe an enum',
-      description: 'Get one enum type with all of its values.',
+      description:
+        'Get one enum type with all of its values (name as listed, or schema.name).',
       inputSchema: GetEnumInfoInputSchema,
       outputSchema: GetEnumInfoOutputSchema,
       annotations: READ_ONLY_TOOL,

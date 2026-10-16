@@ -67,3 +67,32 @@ export async function getAccountIdByName(name: string) {
 
   return data.id as string;
 }
+
+/** The team an invitation for `email` was stored on, or null if none. */
+export async function getInvitationAccountId(email: string) {
+  const { data, error } = await getSupabaseAdminClient()
+    .from('invitations')
+    .select('account_id')
+    .eq('email', email)
+    .maybeSingle();
+
+  if (error) {
+    throw new Error(`Failed to read invitation for ${email}: ${error.message}`);
+  }
+
+  return (data?.account_id as string | undefined) ?? null;
+}
+
+export async function getAccountById(id: string) {
+  const { data, error } = await getSupabaseAdminClient()
+    .from('accounts')
+    .select('name, slug')
+    .eq('id', id)
+    .single();
+
+  if (error) {
+    throw new Error(`Failed to find account ${id}: ${error.message}`);
+  }
+
+  return data as { name: string; slug: string | null };
+}

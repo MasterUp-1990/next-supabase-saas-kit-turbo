@@ -1,16 +1,9 @@
 export type EnvMode = 'development' | 'production';
 
-export type ScanFs = {
-  readFile: (filePath: string) => Promise<string>;
-  readdir: (dirPath: string) => Promise<string[]>;
-  stat: (path: string) => Promise<{ isDirectory(): boolean }>;
-};
-
 export type ScanOptions = {
   apps?: string[];
   rootDir?: string;
   mode: EnvMode;
-  fs?: ScanFs;
 };
 
 export type EnvDefinition = {

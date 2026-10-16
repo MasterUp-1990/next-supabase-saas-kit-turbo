@@ -34,9 +34,9 @@ Default to skepticism. Assume the change can fail in subtle, high-cost, or user-
 
 ### Track A — Adversarial Code Quality & Architecture Audit
 
-Spawn an `Explore` sub-agent using the prompt in `.agents/agents/code-quality-reviewer.md`.
+Spawn the `code-quality-reviewer` agent. If your tool cannot spawn a named agent, spawn a general-purpose sub-agent and give it the instructions from the `code-quality-reviewer` agent file in this repo's agent directory (`.claude/agents/`, `.agents/agents/`, or `.codex/agents/`). Do not use a search-only agent such as `Explore`: it locates code but does not review it.
 
-Pass it the list of changed files. Its job: verify AGENTS.md compliance, flag anti-patterns, and propose simpler/better-structured alternatives.
+Pass it the list of changed files and tell it the review is read-only: it must not edit files. Its job: verify AGENTS.md compliance, flag anti-patterns, and propose simpler/better-structured alternatives.
 
 ### Track B — Adversarial Logic & Bug Review
 
@@ -76,6 +76,18 @@ Do not include style feedback, naming feedback, low-value cleanup, or speculativ
 
 Wait for both tracks to complete, then merge findings.
 
+### Judge Track A before reporting
+
+Track B's findings already survived a separate refutation pass. Track A's have not, so filter them yourself before they reach the report. You have context the sub-agent lacked: the conversation, the intent, and the rest of the codebase.
+
+- **Nitpick gravity.** A reviewer that finds nothing serious inflates nits to fill the report. If every Track A finding is a nit or a style preference, the code is probably fine. Say so.
+- **Hypothetical vs. actual.** "What if this is null?" is a finding only if a caller can pass null. Trace the call site. If upstream validation or the type system prevents it, dismiss it.
+- **"I would have done it differently."** A preference is not a finding unless the reviewer shows a concrete problem with the current approach.
+- **Missing context.** Dismiss pre-existing issues in code the change neither touched nor affects, and patterns that match the rest of the codebase. Breakage the change causes elsewhere (callers, policies, i18n keys) is in scope.
+- **Never dismiss** a finding about auth, permissions, tenant isolation, or data loss on these grounds alone. Verify it against the code first.
+
+More than 5 ❌ FAIL items usually means the filter was too loose. Re-check them, but do not drop a real issue to hit a number.
+
 ### Per-file findings
 
 - ✅ **PASS** — brief evidence
@@ -83,6 +95,10 @@ Wait for both tracks to complete, then merge findings.
 - ❌ **FAIL** `file:line` — what can go wrong / why vulnerable / impact / concrete fix
 
 Where both tracks agree on a problem, mark it **[CONSENSUS]**.
+
+### Dismissed
+
+One line per Track A finding you dismissed and why, so the author can overrule you. Omit the section if nothing was dismissed.
 
 ### Simplification & Architecture Opportunities
 

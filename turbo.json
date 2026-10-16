@@ -1,6 +1,7 @@
 {
   "$schema": "https://turborepo.org/schema.json",
   "globalDependencies": ["**/.env"],
+  "agentGuidance": false,
   "ui": "stream",
   "globalEnv": [
     "STRIPE_SECRET_KEY",

@@ -1,237 +1,48 @@
+import {
+  type I18nSettings,
+  type TranslationsDeps,
+  type TranslationsService,
+  createTranslationsService,
+} from '@makerkit/i18n';
+import { registerI18nTools } from '@makerkit/i18n/mcp';
+import { createI18nDeps } from '@makerkit/i18n/node';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import {
-  DESTRUCTIVE_TOOL,
-  IDEMPOTENT_MUTATING_TOOL,
-  MUTATING_TOOL,
-  READ_ONLY_TOOL,
-} from '../../lib/tool-response';
-import {
-  type KitTranslationsDeps,
-  createKitTranslationsDeps,
-  createKitTranslationsService,
-} from './kit-translations.service';
-import {
-  KitTranslationsAddLocaleInputSchema,
-  KitTranslationsAddLocaleOutputSchema,
-  KitTranslationsAddNamespaceInputSchema,
-  KitTranslationsAddNamespaceOutputSchema,
-  KitTranslationsListInputSchema,
-  KitTranslationsListOutputSchema,
-  KitTranslationsRemoveLocaleInputSchema,
-  KitTranslationsRemoveLocaleOutputSchema,
-  KitTranslationsRemoveNamespaceInputSchema,
-  KitTranslationsRemoveNamespaceOutputSchema,
-  KitTranslationsStatsInputSchema,
-  KitTranslationsStatsOutputSchema,
-  KitTranslationsUpdateInputSchema,
-  KitTranslationsUpdateOutputSchema,
-} from './schema';
-
-type TextContent = {
-  type: 'text';
-  text: string;
+/**
+ * The kit_translations_* tools come from @makerkit/i18n. The kit sets where
+ * its message files live (`<messagesDir>/<locale>/<namespace>.json`).
+ */
+export const KIT_I18N_SETTINGS: I18nSettings = {
+  messagesDir: 'apps/web/i18n/messages',
+  baseLocale: 'en',
 };
 
 export function registerKitTranslationsTools(
   server: McpServer,
   rootPath?: string,
-) {
-  const service = createKitTranslationsService(
+  service: TranslationsService = createKitTranslationsService(
     createKitTranslationsDeps(rootPath),
-  );
-
-  server.registerTool(
-    'kit_translations_list',
-    {
-      description: 'List translations across locales and namespaces',
-      inputSchema: KitTranslationsListInputSchema,
-      outputSchema: KitTranslationsListOutputSchema,
-      annotations: READ_ONLY_TOOL,
-    },
-    async () => {
-      try {
-        const result = await service.list();
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_translations_list', error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'kit_translations_update',
-    {
-      description: 'Update a translation value in a locale namespace',
-      inputSchema: KitTranslationsUpdateInputSchema,
-      outputSchema: KitTranslationsUpdateOutputSchema,
-      annotations: IDEMPOTENT_MUTATING_TOOL,
-    },
-    async (input) => {
-      try {
-        const parsed = KitTranslationsUpdateInputSchema.parse(input);
-        const result = await service.update(parsed);
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_translations_update', error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'kit_translations_stats',
-    {
-      description: 'Get translation coverage statistics',
-      inputSchema: KitTranslationsStatsInputSchema,
-      outputSchema: KitTranslationsStatsOutputSchema,
-      annotations: READ_ONLY_TOOL,
-    },
-    async () => {
-      try {
-        const result = await service.stats();
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_translations_stats', error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'kit_translations_add_namespace',
-    {
-      description: 'Create a new translation namespace across all locales',
-      inputSchema: KitTranslationsAddNamespaceInputSchema,
-      outputSchema: KitTranslationsAddNamespaceOutputSchema,
-      annotations: MUTATING_TOOL,
-    },
-    async (input) => {
-      try {
-        const { namespace } =
-          KitTranslationsAddNamespaceInputSchema.parse(input);
-        const result = await service.addNamespace({ namespace });
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_translations_add_namespace', error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'kit_translations_add_locale',
-    {
-      description: 'Add a new locale with empty namespace files',
-      inputSchema: KitTranslationsAddLocaleInputSchema,
-      outputSchema: KitTranslationsAddLocaleOutputSchema,
-      annotations: MUTATING_TOOL,
-    },
-    async (input) => {
-      try {
-        const { locale } = KitTranslationsAddLocaleInputSchema.parse(input);
-        const result = await service.addLocale({ locale });
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_translations_add_locale', error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'kit_translations_remove_namespace',
-    {
-      description: 'Remove a translation namespace from all locales',
-      inputSchema: KitTranslationsRemoveNamespaceInputSchema,
-      outputSchema: KitTranslationsRemoveNamespaceOutputSchema,
-      annotations: DESTRUCTIVE_TOOL,
-    },
-    async (input) => {
-      try {
-        const { namespace } =
-          KitTranslationsRemoveNamespaceInputSchema.parse(input);
-        const result = await service.removeNamespace({ namespace });
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_translations_remove_namespace', error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'kit_translations_remove_locale',
-    {
-      description: 'Remove a locale and all its translation files',
-      inputSchema: KitTranslationsRemoveLocaleInputSchema,
-      outputSchema: KitTranslationsRemoveLocaleOutputSchema,
-      annotations: DESTRUCTIVE_TOOL,
-    },
-    async (input) => {
-      try {
-        const { locale } = KitTranslationsRemoveLocaleInputSchema.parse(input);
-        const result = await service.removeLocale({ locale });
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_translations_remove_locale', error);
-      }
-    },
-  );
+  ),
+) {
+  registerI18nTools(server, service, { prefix: 'kit_' });
 }
 
-function buildErrorResponse(tool: string, error: unknown) {
-  const message = `${tool} failed: ${toErrorMessage(error)}`;
-
-  return {
-    isError: true,
-    content: buildTextContent(message),
-  };
+export function createKitTranslationsDeps(
+  rootPath = process.cwd(),
+): TranslationsDeps {
+  return createI18nDeps(rootPath, { settings: KIT_I18N_SETTINGS });
 }
 
-function toErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
-  }
+export const createKitTranslationsService = createTranslationsService;
 
-  return 'Unknown error';
-}
+export type KitTranslationsDeps = TranslationsDeps;
 
-function buildTextContent(text: string): TextContent[] {
-  return [{ type: 'text', text }];
-}
-
-export { createKitTranslationsService, createKitTranslationsDeps };
-export type { KitTranslationsDeps };
 export type {
-  KitTranslationsAddLocaleOutput,
-  KitTranslationsAddNamespaceOutput,
-  KitTranslationsListOutput,
-  KitTranslationsRemoveLocaleOutput,
-  KitTranslationsRemoveNamespaceOutput,
-  KitTranslationsStatsOutput,
-  KitTranslationsUpdateOutput,
-} from './schema';
+  TranslationsAddLocaleOutput as KitTranslationsAddLocaleOutput,
+  TranslationsAddNamespaceOutput as KitTranslationsAddNamespaceOutput,
+  TranslationsListOutput as KitTranslationsListOutput,
+  TranslationsRemoveLocaleOutput as KitTranslationsRemoveLocaleOutput,
+  TranslationsRemoveNamespaceOutput as KitTranslationsRemoveNamespaceOutput,
+  TranslationsStatsOutput as KitTranslationsStatsOutput,
+  TranslationsUpdateOutput as KitTranslationsUpdateOutput,
+} from '@makerkit/i18n';

@@ -1,4 +1,4 @@
-import { findWorkspaceRoot } from './tools/env/public-api';
+import { findWorkspaceRoot as findRoot } from '@makerkit/env-inspector/node';
 
 export function resolveProjectRoot(argv: string[] = process.argv): string {
   // 1. CLI flag: --root /path
@@ -17,4 +17,9 @@ export function resolveProjectRoot(argv: string[] = process.argv): string {
 
   // 3. Auto-discovery (traverse up from cwd looking for pnpm-workspace.yaml)
   return findWorkspaceRoot(process.cwd());
+}
+
+/** The nearest directory above `startPath` with a pnpm-workspace.yaml. */
+export function findWorkspaceRoot(startPath: string) {
+  return findRoot(startPath, { markers: ['pnpm-workspace.yaml'] });
 }

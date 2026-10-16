@@ -48,6 +48,20 @@ Pick **3–5 classes that the diff actually exposes**. Do not run classes the ch
 
 Lean on the project's `AGENTS.md` and the reviewer's stance: auth, tenant isolation, and irreversible state come first.
 
+### Where grep stops
+
+A caller search finds direct callers. The breakages below never show up in one, so check the entries the diff can reach and hand each hunter the ones relevant to its classes:
+
+- **RLS, grants, and SQL functions** in `apps/web/supabase/schemas/`. A query can be safe only because a policy filters it, and a policy or `SECURITY DEFINER` change affects every caller of that table or function. Tenant-isolation claims are provable with pgTAP in `apps/web/supabase/tests/database/`.
+- **Generated types** in `packages/supabase/src/database.types.ts`. A column or function change that is not regenerated leaves the types lying about the database.
+- **Supabase Auth templates** in `apps/web/supabase/templates/`. They rely on placeholders the auth flow supplies.
+- **Config** in `apps/web/config/`: paths and feature flags. A renamed path or flag compiles but breaks navigation or gating.
+- **i18n keys** in `apps/web/i18n/messages/`. A renamed or removed key fails silently at runtime.
+- **Billing webhooks** in `packages/billing/`. Provider payloads and status values reach these handlers without a direct import.
+- **Email templates** in `packages/email-templates/` and their locales.
+- **Wire formats** another consumer reads: an API response shape, a webhook payload, a stored JSON column, a cookie, or a URL parameter.
+- **Code that runs later than it looks**: database triggers, auth hooks, background jobs, and React unmount or teardown.
+
 ## Stage 2 — Hunt (2–4 parallel agents)
 
 Cluster the chosen classes into **2–4 hunters** (one hunter may own 1–2 related classes). Spawn them in a single message, `subagent_type=general-purpose`, all reading the **same diff scope**.
@@ -60,6 +74,7 @@ You are adversarially hunting bugs in a code change. Try to DISPROVE that it is 
 Attack classes (only these): {classes}
 Changed files / hunks to focus on:
 {file:line list from the diff}
+Places a caller search misses that this change can reach (check these too): {where-grep-stops entries}
 
 What to do:
 1. Read the changed code and just enough surrounding code to trace how input reaches it from a trust boundary (route, server action, loader, webhook).
@@ -103,6 +118,11 @@ For each candidate:
 1. Read the cited location and surrounding code independently.
 2. Trace whether the trigger path actually exists end-to-end from an external trust boundary.
 3. Check for guards the hunter may have missed: middleware, auth/permission helpers, RLS or org-scope filters, type/schema validation, framework escaping, upstream sanitization.
+4. If a verdict rests on one fact (for example "the policy already blocks cross-account reads"), prove that fact as far as is cheap and record the level you reached:
+   - cited: you point at the guarding file:line
+   - traced: you walked the failure path step by step and it does not reach
+   - ran: an existing test, or a throwaway script kept outside the repository, exercised the real code and would fail loudly if the fact were false
+   If proving it needs a service that is not running (database, dev server), record unproven instead of guessing.
 
 Return one verdict per candidate in your final message:
 
@@ -111,10 +131,11 @@ id: <id>
 verdict: confirmed | refuted | needs-info
 why: one concrete sentence — for refuted, name the specific guard that blocks it ("the org-scope filter at X already constrains this"); for confirmed, the external path that reaches it.
 revised_severity: critical|high|medium|low   (only if confirmed)
+proof: cited|traced|ran|unproven — what you read or ran
 
 Rules:
 - If you cannot reach the bug from external input, refute it.
-- Do not introduce new findings. Do not edit source. Read-only.
+- Do not introduce new findings. Do not create or edit files inside the repository. Running existing tests and throwaway scripts outside the repository is allowed.
 ```
 
 ## Stage 4 — Report (you, inline)
@@ -124,6 +145,8 @@ Keep only `confirmed` (and `needs-info` you judge plausible). Emit findings in *
 - ❌ **FAIL** `file:line` — what can go wrong / why vulnerable / impact / concrete fix
 - ⚠️ **WARNING** `file:line` — issue + recommendation
 - ✅ **PASS** — if the disprove pass refuted everything, say so plainly with one line of evidence.
+
+Carry each finding's proof level from the disprove pass into the report. A finding whose safety or exploit hinges on an unproven fact says so.
 
 For each FAIL, give a one-line concrete fix. List refuted candidates as a single line each ("refuted because …") only if it adds signal — otherwise drop them.
 
@@ -136,7 +159,7 @@ When invoked inside `/reviewer`, return these findings to the reviewer's synthes
 - **Separate discover and disprove agents — always.** This is the whole point; collapsing them defeats the skill.
 - **Diff-scoped.** If you find yourself reading the whole repo, you've reached for the wrong skill — use `/bug-hunt`.
 - **No filler.** One strong confirmed finding beats five low-confidence guesses. An honest PASS is a valid result.
-- **Read-only.** No agent here edits source. Fixing is a separate, human-gated step.
+- **No repository edits.** No agent here creates or edits files in the repository. The disprove agent may run existing tests or throwaway scripts outside it to prove a fact. Fixing is a separate, human-gated step.
 - **No disk artifacts.** Findings stay in messages. (That's the cost trade vs `/bug-hunt`.)
 
 ## When NOT to use this skill

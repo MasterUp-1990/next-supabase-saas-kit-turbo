@@ -215,6 +215,30 @@ export class TeamAccountsPageObject {
     );
   }
 
+  /** Rename to a non-Latin name, which requires a custom slug. */
+  async updateTeamNameWithSlug(name: string, slug: string) {
+    const form = '[data-test="update-team-account-name-form"]:visible';
+
+    await this.page.fill(`${form} [data-test="team-name-input"]`, name);
+
+    const slugInput = this.page.locator(
+      `${form} [data-test="team-slug-input"]`,
+    );
+
+    await expect(slugInput).toBeVisible();
+    await slugInput.fill(slug);
+
+    await Promise.all([
+      this.page.click(`${form} [data-test="update-team-submit-button"]`),
+      this.page.waitForResponse((response) => {
+        return (
+          response.url().includes('settings') &&
+          response.request().method() === 'POST'
+        );
+      }),
+    ]);
+  }
+
   async updateTeamName(name: string) {
     await expect(async () => {
       await this.page.fill(

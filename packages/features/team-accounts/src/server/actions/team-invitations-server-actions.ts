@@ -31,7 +31,7 @@ export const createInvitationsAction = authActionClient
   .inputSchema(
     InviteMembersSchema.and(
       z.object({
-        accountSlug: z.string().min(1),
+        accountId: z.string().uuid(),
       }),
     ),
   )
@@ -45,16 +45,18 @@ export const createInvitationsAction = authActionClient
 
     const client = getSupabaseServerClient();
 
-    // Get account ID from slug (needed for permission checks and policies)
+    // Read the team's current slug by id: the invitation policies and the
+    // add_invitations_to_account RPC are keyed by slug, and the slug the form
+    // rendered with may since have moved to another team.
     const { data: account, error: accountError } = await client
       .from('accounts')
-      .select('id')
-      .eq('slug', params.accountSlug)
+      .select('id, slug')
+      .eq('id', params.accountId)
       .single();
 
-    if (accountError || !account) {
+    if (accountError || !account?.slug) {
       logger.error(
-        { accountSlug: params.accountSlug, error: accountError },
+        { accountId: params.accountId, error: accountError },
         'Account not found',
       );
 
@@ -83,9 +85,14 @@ export const createInvitationsAction = authActionClient
       };
     }
 
+    const invitationParams = {
+      invitations: params.invitations,
+      accountSlug: account.slug,
+    };
+
     // Evaluate custom invitation policies
     const policiesResult = await evaluateInvitationsPolicies(
-      params,
+      invitationParams,
       user,
       account.id,
     );
@@ -110,7 +117,8 @@ export const createInvitationsAction = authActionClient
 
     try {
       await service.sendInvitations({
-        ...params,
+        ...invitationParams,
+        accountId: account.id,
         invitedBy: user.id,
       });
 

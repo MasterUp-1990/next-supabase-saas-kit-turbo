@@ -135,6 +135,7 @@ async function MembersCard({ params }: { params: Params }) {
         <If condition={canManageInvitations && canInvite}>
           <InviteMembersDialogContainer
             userRoleHierarchy={account.role_hierarchy_level}
+            accountId={account.id}
             accountSlug={account.slug}
           >
             <Button size={'sm'} data-test={'invite-members-form-trigger'}>

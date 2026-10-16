@@ -213,7 +213,10 @@ export function createKitDevDeps(rootPath = process.cwd()): KitDevServiceDeps {
         supabaseApiPort: ports.api,
         supabaseStudioPort: ports.studio,
         mailboxApiPort: ports.mailbox,
-        mailboxPort: DEFAULT_PORT_CONFIG.mailboxPort,
+        // Supabase's managed Mailpit serves its UI and API on the same
+        // config.toml port; 8025 is standalone Mailpit's default and
+        // would be reported as a live URL nothing is listening on.
+        mailboxPort: ports.mailbox,
         ormDbPort: DEFAULT_PORT_CONFIG.ormDbPort,
         stripeWebhookPath: DEFAULT_PORT_CONFIG.stripeWebhookPath,
       };

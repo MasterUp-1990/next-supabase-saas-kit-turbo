@@ -6,6 +6,8 @@
     "dev": "node ./src/dev.mjs",
     "checks": "node ./src/checks.mjs",
     "requirements": "node ./src/requirements.mjs",
-    "license": "node ./src/license.mjs"
+    "license": "node ./src/license.mjs",
+    "agents:sync": "node ./src/agents.mjs sync",
+    "agents:check": "node ./src/agents.mjs check"
   }
 }

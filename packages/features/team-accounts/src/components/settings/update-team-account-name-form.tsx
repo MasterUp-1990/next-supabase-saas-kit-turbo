@@ -33,6 +33,7 @@ import { updateTeamAccountName } from '../../server/actions/team-details-server-
 
 export const UpdateTeamAccountNameForm = (props: {
   account: {
+    id: string;
     name: string;
     slug: string;
   };
@@ -40,6 +41,8 @@ export const UpdateTeamAccountNameForm = (props: {
   path: string;
 }) => {
   const t = useTranslations('teams');
+  // The action returns fully-qualified keys (`teams.duplicateSlugError`).
+  const tError = useTranslations();
 
   const form = useForm({
     resolver: zodResolver(
@@ -71,7 +74,7 @@ export const UpdateTeamAccountNameForm = (props: {
           id: toastId.current,
         });
       } else if (data?.error) {
-        toast.error(t(data.error), { id: toastId.current });
+        toast.error(tError(data.error), { id: toastId.current });
       } else {
         toast.error(t('updateTeamErrorMessage'), { id: toastId.current });
       }
@@ -92,7 +95,7 @@ export const UpdateTeamAccountNameForm = (props: {
           className={'flex flex-col space-y-4'}
           onSubmit={form.handleSubmit((data) => {
             execute({
-              slug: props.account.slug,
+              accountId: props.account.id,
               name: data.name,
               newSlug: data.newSlug || undefined,
               path: props.path,

@@ -1,6 +1,6 @@
 {
   "name": "next-supabase-saas-kit-turbo",
-  "version": "4.1.6",
+  "version": "4.2.0",
   "private": true,
   "author": {
     "name": "MakerKit",
@@ -32,7 +32,9 @@
     "supabase:web:typegen": "pnpm --filter web supabase:typegen",
     "supabase:web:reset": "pnpm --filter web supabase:reset",
     "supabase:web:test": "pnpm --filter web supabase:test",
-    "stripe:listen": "pnpm --filter '@kit/stripe' start"
+    "stripe:listen": "pnpm --filter '@kit/stripe' start",
+    "agents:sync": "pnpm --filter scripts agents:sync",
+    "agents:check": "pnpm --filter scripts agents:check"
   },
   "devDependencies": {
     "@manypkg/cli": "catalog:",
@@ -48,5 +50,5 @@
   "engines": {
     "node": ">=20.10.0"
   },
-  "packageManager": "pnpm@11.25.0"
+  "packageManager": "pnpm@12.11.2"
 }

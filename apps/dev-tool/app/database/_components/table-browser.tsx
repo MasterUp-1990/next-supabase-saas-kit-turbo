@@ -52,7 +52,6 @@ const typeColors: Record<string, string> = {
   integer: 'bg-orange-100 text-orange-800',
   'timestamp with time zone': 'bg-gray-100 text-gray-800',
   jsonb: 'bg-yellow-100 text-yellow-800',
-  'USER-DEFINED': 'bg-red-100 text-red-800',
 };
 
 export function TableBrowser({ searchTerm, tables }: TableBrowserProps) {
@@ -261,8 +260,9 @@ export function TableBrowser({ searchTerm, tables }: TableBrowserProps) {
                               <Badge
                                 variant="outline"
                                 className={`text-xs ${
-                                  typeColors[column.type] ||
-                                  'bg-gray-100 text-gray-800'
+                                  typeColors[
+                                    column.type.replace(/\(.*\)/, '')
+                                  ] || 'bg-gray-100 text-gray-800'
                                 }`}
                               >
                                 {getColumnTypeDisplay(column.type)}

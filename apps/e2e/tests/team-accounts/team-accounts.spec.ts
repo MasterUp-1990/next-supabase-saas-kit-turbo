@@ -4,6 +4,8 @@ import { InvitationsPageObject } from '../invitations/invitations.po';
 import {
   getAccountIdByName,
   getAccountImageStatus,
+  getAccountById,
+  getInvitationAccountId,
   seedAccountImage,
 } from '../utils/account-image';
 import { HOME_LANDING_URL, TeamAccountsPageObject } from './team-accounts.po';
@@ -330,6 +332,183 @@ test.describe('Team Ownership Transfer', () => {
     // The original owner should no longer have the primary owner badge
     const ownerRow = page.getByRole('row', { name: ownerEmail });
     await expect(ownerRow.locator('text=Primary Owner')).not.toBeVisible();
+  });
+});
+
+test.describe('Team Account Name', () => {
+  // A settings form captures the team's slug when it renders. Renaming a team
+  // regenerates its slug, so by submit time that slug can belong to another
+  // team the same user owns.
+  test('a stale settings form renames its own team, not the team that took its slug', async ({
+    page,
+    context,
+  }) => {
+    const teamAccounts = new TeamAccountsPageObject(page);
+    const teamA = teamAccounts.createTeamName();
+    const teamB = teamAccounts.createTeamName();
+
+    await teamAccounts.setup(teamA);
+    await teamAccounts.createTeam(teamB);
+
+    const teamAId = await getAccountIdByName(teamA.teamName);
+    const teamBId = await getAccountIdByName(teamB.teamName);
+
+    // Open team A's settings in a second tab and leave it there.
+    const stalePage = await context.newPage();
+    const staleTeamAccounts = new TeamAccountsPageObject(stalePage);
+
+    await stalePage.goto(`/home/${teamA.slug}/settings`);
+
+    await expect(
+      stalePage.locator('[data-test="update-team-account-name-form"]:visible'),
+    ).toBeVisible();
+
+    // Rename team A, freeing its slug, then rename team B so it takes it.
+    const renamedA = `Renamed-A-${(Math.random() * 100000000).toFixed(0)}`;
+
+    await page.goto(`/home/${teamA.slug}/settings`);
+    await teamAccounts.updateTeamName(renamedA);
+
+    await expect
+      .poll(async () => (await getAccountById(teamAId)).name)
+      .toBe(renamedA);
+
+    await page.goto(`/home/${teamB.slug}/settings`);
+    await teamAccounts.updateTeamName(teamA.teamName);
+
+    // Precondition: team B now holds the slug the stale form rendered with.
+    await expect
+      .poll(() => getAccountById(teamBId))
+      .toEqual({ name: teamA.teamName, slug: teamA.slug });
+
+    // Submit the form that was rendered for team A.
+    const finalName = `Final-A-${(Math.random() * 100000000).toFixed(0)}`;
+
+    await staleTeamAccounts.updateTeamName(finalName);
+
+    await expect
+      .poll(async () => (await getAccountById(teamAId)).name)
+      .toBe(finalName);
+
+    expect(await getAccountById(teamBId)).toEqual({
+      name: teamA.teamName,
+      slug: teamA.slug,
+    });
+  });
+
+  test('a stale invite form invites into its own team, not the team that took its slug', async ({
+    page,
+    context,
+  }) => {
+    const teamAccounts = new TeamAccountsPageObject(page);
+    const teamA = teamAccounts.createTeamName();
+    const teamB = teamAccounts.createTeamName();
+
+    await teamAccounts.setup(teamA);
+    await teamAccounts.createTeam(teamB);
+
+    const teamAId = await getAccountIdByName(teamA.teamName);
+    const teamBId = await getAccountIdByName(teamB.teamName);
+
+    // Open team A's invite form in a second tab and leave it there.
+    const stalePage = await context.newPage();
+    const staleInvitations = new InvitationsPageObject(stalePage);
+
+    await stalePage.goto(`/home/${teamA.slug}/members`);
+    await staleInvitations.openInviteForm();
+
+    // Move team A's slug to team B.
+    await page.goto(`/home/${teamA.slug}/settings`);
+    await teamAccounts.updateTeamName(
+      `Renamed-A-${(Math.random() * 100000000).toFixed(0)}`,
+    );
+
+    await expect
+      .poll(async () => (await getAccountById(teamAId)).slug)
+      .not.toBe(teamA.slug);
+
+    await page.goto(`/home/${teamB.slug}/settings`);
+    await teamAccounts.updateTeamName(teamA.teamName);
+
+    await expect
+      .poll(async () => (await getAccountById(teamBId)).slug)
+      .toBe(teamA.slug);
+
+    const email = staleInvitations.auth.createRandomEmail();
+
+    await staleInvitations.inviteMembers([{ email, role: 'member' }]);
+
+    await expect.poll(() => getInvitationAccountId(email)).toBe(teamAId);
+  });
+
+  test('renaming to a non-Latin name keeps the custom slug', async ({
+    page,
+  }) => {
+    const teamAccounts = new TeamAccountsPageObject(page);
+    const team = teamAccounts.createTeamName();
+
+    await teamAccounts.setup(team);
+
+    const teamId = await getAccountIdByName(team.teamName);
+    const slug = `japan-${(Math.random() * 100000000).toFixed(0)}`;
+
+    await page.goto(`/home/${team.slug}/settings`);
+    await teamAccounts.updateTeamNameWithSlug('日本語チーム', slug);
+
+    await expect
+      .poll(() => getAccountById(teamId))
+      .toEqual({ name: '日本語チーム', slug });
+
+    await expect(page).toHaveURL(`/home/${slug}/settings`);
+  });
+
+  test('a taken custom slug is rejected and the team keeps a working slug', async ({
+    page,
+  }) => {
+    const teamAccounts = new TeamAccountsPageObject(page);
+    const teamA = teamAccounts.createTeamName();
+    const teamB = teamAccounts.createTeamName();
+
+    await teamAccounts.setup(teamA);
+    await teamAccounts.createTeam(teamB);
+
+    const teamBId = await getAccountIdByName(teamB.teamName);
+
+    await page.goto(`/home/${teamB.slug}/settings`);
+    await teamAccounts.updateTeamNameWithSlug('日本語チーム', teamA.slug);
+
+    await expect(
+      page.getByText(
+        'This URL is already taken. Please choose a different one.',
+      ),
+    ).toBeVisible();
+
+    // Rejected before anything was written.
+    expect(await getAccountById(teamBId)).toEqual({
+      name: teamB.teamName,
+      slug: teamB.slug,
+    });
+  });
+
+  test('a rename that slugifies to the current slug keeps it', async ({
+    page,
+  }) => {
+    const teamAccounts = new TeamAccountsPageObject(page);
+    const team = teamAccounts.createTeamName();
+
+    await teamAccounts.setup(team);
+
+    const teamId = await getAccountIdByName(team.teamName);
+    // "Team-Name-123" -> "TEAM NAME 123": differs in case and punctuation,
+    // but still slugifies to "team-name-123".
+    const upperName = team.teamName.toUpperCase().replaceAll('-', ' ');
+
+    await page.goto(`/home/${team.slug}/settings`);
+    await teamAccounts.updateTeamName(upperName);
+
+    await expect
+      .poll(() => getAccountById(teamId))
+      .toEqual({ name: upperName, slug: team.slug });
   });
 });
 

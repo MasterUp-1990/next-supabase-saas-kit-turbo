@@ -673,7 +673,11 @@ function parseSupabaseEnvOutput(output: string) {
     }
 
     const key = trimmed.slice(0, idx).trim();
-    const value = trimmed.slice(idx + 1).trim();
+    // Newer Supabase CLIs quote the values: API_URL="http://..."
+    const value = trimmed
+      .slice(idx + 1)
+      .trim()
+      .replace(/^(["'])(.*)\1$/, '$2');
 
     if (key) {
       values[key] = value;

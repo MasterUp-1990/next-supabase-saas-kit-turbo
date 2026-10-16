@@ -623,6 +623,38 @@ describe('KitDevService', () => {
       expect(db?.extras?.studio_url).toBe('http://127.0.0.1:54323');
     });
 
+    it('strips the quotes newer Supabase CLIs put around status -o env values', async () => {
+      const service = createKitDevService(
+        createDeps({
+          async executeCommand(command: string, args: string[]) {
+            if (args.join(' ').includes('supabase status -o env')) {
+              return {
+                stdout:
+                  'API_URL="http://127.0.0.1:54321"\nSTUDIO_URL="http://127.0.0.1:54323"\nANON_KEY="test-anon"\nSERVICE_ROLE_KEY=\'test-service\'\n',
+                stderr: '',
+                exitCode: 0,
+              };
+            }
+
+            return { stdout: '', stderr: '', exitCode: 0 };
+          },
+          async isPortOpen(port: number) {
+            return port === 54321 || port === 54323;
+          },
+        }),
+      );
+
+      const result = await service.status();
+      const db = result.services.find((s) => s.id === 'database');
+
+      expect(db?.url).toBe('http://127.0.0.1:54321');
+      expect(db?.extras).toEqual({
+        studio_url: 'http://127.0.0.1:54323',
+        anon_key: 'test-anon',
+        service_role_key: 'test-service',
+      });
+    });
+
     it('returns PostgreSQL status for ORM variants', async () => {
       const service = createKitDevService(
         createOrmDeps({

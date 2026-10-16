@@ -15,6 +15,10 @@ export function useNotificationsStream({
 }) {
   const client = useSupabase();
 
+  // callers usually pass an inline array; key the subscription on its
+  // contents so a re-render does not resubscribe the channel
+  const accountIdsKey = accountIds.join(', ');
+
   useEffect(() => {
     if (!enabled) {
       return;
@@ -28,7 +32,7 @@ export function useNotificationsStream({
         {
           event: 'INSERT',
           schema: 'public',
-          filter: `account_id=in.(${accountIds.join(', ')})`,
+          filter: `account_id=in.(${accountIdsKey})`,
           table: 'notifications',
         },
         (payload) => {
@@ -40,5 +44,5 @@ export function useNotificationsStream({
     return () => {
       void subscription?.unsubscribe();
     };
-  }, [client, onNotifications, accountIds, enabled]);
+  }, [client, onNotifications, accountIdsKey, enabled]);
 }

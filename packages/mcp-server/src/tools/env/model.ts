@@ -626,6 +626,7 @@ export const envVariables: EnvVariableModel[] = [
     description: 'Billing mode configuration for the application.',
     category: 'Billing',
     required: false,
+    secret: false,
     type: 'enum',
     values: ['subscription', 'one-time'],
     deprecated: {
@@ -817,6 +818,7 @@ export const envVariables: EnvVariableModel[] = [
     displayName: 'Lemon Squeezy Store ID',
     description: 'Your Lemon Squeezy store ID.',
     category: 'Billing',
+    secret: false,
     type: 'string',
     contextualValidation: {
       dependencies: [
@@ -891,6 +893,7 @@ export const envVariables: EnvVariableModel[] = [
     description: 'Your email service provider. Options: nodemailer or resend.',
     category: 'Email',
     required: true,
+    secret: false,
     type: 'enum',
     values: ['nodemailer', 'resend'],
     validate: ({ value }) => {
@@ -904,6 +907,7 @@ export const envVariables: EnvVariableModel[] = [
     category: 'Email',
     hint: `Ex. "Makerkit <admin@makerkit.dev>"`,
     required: true,
+    secret: false,
     type: 'string',
     validate: ({ value }) => {
       return z
@@ -919,6 +923,7 @@ export const envVariables: EnvVariableModel[] = [
     category: 'Email',
     hint: `Ex. "Makerkit <admin@makerkit.dev>"`,
     required: true,
+    secret: false,
     type: 'email',
     validate: ({ value }) => {
       return z
@@ -961,6 +966,7 @@ export const envVariables: EnvVariableModel[] = [
     displayName: 'Email Host',
     description: 'SMTP host for Nodemailer configuration.',
     category: 'Email',
+    secret: false,
     type: 'string',
     hint: `Ex. "smtp.example.com"`,
     contextualValidation: {
@@ -988,6 +994,7 @@ export const envVariables: EnvVariableModel[] = [
     displayName: 'Email Port',
     description: 'SMTP port for Nodemailer configuration.',
     category: 'Email',
+    secret: false,
     type: 'number',
     hint: `Ex. 587 or 465`,
     contextualValidation: {
@@ -1071,6 +1078,7 @@ export const envVariables: EnvVariableModel[] = [
     description:
       'Whether to use TLS for SMTP connection. Please check this in your SMTP provider settings.',
     category: 'Email',
+    secret: false,
     type: 'boolean',
     contextualValidation: {
       dependencies: [
@@ -1097,6 +1105,7 @@ export const envVariables: EnvVariableModel[] = [
     displayName: 'CMS Client',
     description: 'Your chosen CMS system. Options: wordpress or keystatic.',
     category: 'CMS',
+    secret: false,
     type: 'enum',
     values: ['wordpress', 'keystatic'],
     validate: ({ value }) => {
@@ -1192,6 +1201,7 @@ export const envVariables: EnvVariableModel[] = [
     displayName: 'Keystatic Path Prefix',
     description: 'Your Keystatic path prefix.',
     category: 'CMS',
+    secret: false,
     type: 'string',
     contextualValidation: {
       dependencies: [
@@ -1239,6 +1249,7 @@ export const envVariables: EnvVariableModel[] = [
     displayName: 'WordPress API URL',
     description: 'WordPress API URL when using WordPress as CMS.',
     category: 'CMS',
+    secret: false,
     type: 'string',
     contextualValidation: {
       dependencies: [
@@ -1324,6 +1335,7 @@ export const envVariables: EnvVariableModel[] = [
     displayName: 'Enable React Compiler',
     description: 'Enables the React compiler [experimental]',
     category: 'Build',
+    secret: false,
     type: 'boolean',
     validate: ({ value }) => {
       return z.coerce.boolean().optional().safeParse(value);
@@ -1408,6 +1420,7 @@ export const envVariables: EnvVariableModel[] = [
     displayName: 'Enable Stripe Trial Without Credit Card',
     description: 'Enables trial plans without credit card.',
     category: 'Billing',
+    secret: false,
     type: 'boolean',
     validate: ({ value }) => {
       return z.coerce.boolean().optional().safeParse(value);
@@ -1419,6 +1432,7 @@ export const envVariables: EnvVariableModel[] = [
     description:
       'Controls whether Stripe Checkout uses an embedded page or a hosted page. Defaults to embedded_page.',
     category: 'Billing',
+    secret: false,
     type: 'enum',
     values: ['embedded_page', 'hosted_page'],
     validate: ({ value }) => {
@@ -1480,6 +1494,7 @@ export const envVariables: EnvVariableModel[] = [
     description: 'Enables strict Content Security Policy (CSP) headers.',
     category: 'Security',
     required: false,
+    secret: false,
     type: 'boolean',
     validate: ({ value }) => {
       return z.coerce.boolean().optional().safeParse(value);

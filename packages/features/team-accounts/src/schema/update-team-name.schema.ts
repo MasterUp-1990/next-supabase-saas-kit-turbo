@@ -31,7 +31,7 @@ export const TeamNameFormSchema = z
 
 export const UpdateTeamNameSchema = TeamNameFormSchema.and(
   z.object({
-    slug: z.string().min(1).max(255),
+    accountId: z.string().uuid(),
     path: z.string().min(1).max(255),
   }),
 );

@@ -31,6 +31,9 @@ export function createFakeMcpServer() {
       tools.push({ name, config, handler });
       return {};
     },
+    registerPrompt() {
+      return {};
+    },
   };
 
   return {

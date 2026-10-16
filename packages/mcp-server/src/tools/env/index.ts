@@ -1,187 +1,115 @@
+import {
+  type EnvInspectorDeps,
+  type EnvInspectorSettings,
+  EnvInspectorService,
+  NEXTJS_ENV_FILES,
+  processEnvDefinitions as processEnvFileDefinitions,
+  scanEnvFiles,
+} from '@makerkit/env-inspector';
+import { registerEnvInspectorTools } from '@makerkit/env-inspector/mcp';
+import { createEnvInspectorDeps } from '@makerkit/env-inspector/node';
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 
-import {
-  DESTRUCTIVE_TOOL,
-  IDEMPOTENT_MUTATING_TOOL,
-  READ_ONLY_TOOL,
-} from '../../lib/tool-response';
-import {
-  type KitEnvDeps,
-  createKitEnvDeps,
-  createKitEnvService,
-} from './kit-env.service';
-import {
-  KitEnvRawReadInputSchema,
-  KitEnvRawReadOutputSchema,
-  KitEnvRawWriteInputSchema,
-  KitEnvRawWriteOutputSchema,
-  KitEnvReadInputSchema,
-  KitEnvReadOutputSchema,
-  KitEnvSchemaInputSchema,
-  KitEnvSchemaOutputSchema,
-  KitEnvUpdateInputSchema,
-  KitEnvUpdateOutputSchema,
-} from './schema';
+import { findWorkspaceRoot } from '../../resolve-root';
+import { envVariables } from './model';
+import type { AppEnvState, EnvFileInfo, EnvMode, ScanOptions } from './types';
 
-type TextContent = {
-  type: 'text';
-  text: string;
+/**
+ * The kit_env_* tools come from @makerkit/env-inspector. The kit passes its
+ * variable model (./model) and reads apps/web with the Next.js env file order.
+ * Values are shown as they are: this is a local development tool.
+ */
+const KIT_ENV_FILES: Record<EnvMode, readonly string[]> = {
+  development: NEXTJS_ENV_FILES['development'] ?? [],
+  production: NEXTJS_ENV_FILES['production'] ?? [],
 };
 
-export function registerKitEnvTools(server: McpServer, rootPath?: string) {
-  const service = createKitEnvService(createKitEnvDeps(rootPath));
-
-  server.registerTool(
-    'kit_env_schema',
-    {
-      description: 'Return environment variable schema for this kit variant',
-      inputSchema: KitEnvSchemaInputSchema,
-      outputSchema: KitEnvSchemaOutputSchema,
-      annotations: READ_ONLY_TOOL,
+export const KIT_ENV_SETTINGS: EnvInspectorSettings = {
+  model: envVariables,
+  apps: [{ name: 'web', path: 'apps/web' }],
+  envFiles: KIT_ENV_FILES,
+  revealValues: true,
+  // Next.js loads .env.local over .env.development (and .env.production.local
+  // over .env.production), so writing public values to the committed files
+  // could leave them hidden behind a local copy. Every write goes to the local
+  // file, as the kit did before the env-inspector package.
+  writeTargets: {
+    development: { secret: '.env.local', nonSecret: '.env.local' },
+    production: {
+      secret: '.env.production.local',
+      nonSecret: '.env.production.local',
     },
-    async () => {
-      try {
-        const result = await service.getSchema();
+  },
+};
 
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_env_schema', error);
-      }
-    },
-  );
+export type KitEnvDeps = EnvInspectorDeps;
 
-  server.registerTool(
-    'kit_env_read',
-    {
-      description: 'Read environment variables and validation state',
-      inputSchema: KitEnvReadInputSchema,
-      outputSchema: KitEnvReadOutputSchema,
-      annotations: READ_ONLY_TOOL,
-    },
-    async (input) => {
-      try {
-        const parsed = KitEnvReadInputSchema.parse(input);
-        const result = await service.read(parsed.mode);
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_env_read', error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'kit_env_update',
-    {
-      description: 'Update one environment variable in a target .env file',
-      inputSchema: KitEnvUpdateInputSchema,
-      outputSchema: KitEnvUpdateOutputSchema,
-      annotations: IDEMPOTENT_MUTATING_TOOL,
-    },
-    async (input) => {
-      try {
-        const parsed = KitEnvUpdateInputSchema.parse(input);
-        const result = await service.update(parsed);
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_env_update', error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'kit_env_raw_read',
-    {
-      description: 'Read raw content of an .env file',
-      inputSchema: KitEnvRawReadInputSchema,
-      outputSchema: KitEnvRawReadOutputSchema,
-      annotations: READ_ONLY_TOOL,
-    },
-    async (input) => {
-      try {
-        const parsed = KitEnvRawReadInputSchema.parse(input);
-        const result = await service.rawRead(parsed.file);
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_env_raw_read', error);
-      }
-    },
-  );
-
-  server.registerTool(
-    'kit_env_raw_write',
-    {
-      description: 'Write raw content to an .env file',
-      inputSchema: KitEnvRawWriteInputSchema,
-      outputSchema: KitEnvRawWriteOutputSchema,
-      annotations: DESTRUCTIVE_TOOL,
-    },
-    async (input) => {
-      try {
-        const parsed = KitEnvRawWriteInputSchema.parse(input);
-        const result = await service.rawWrite(parsed.file, parsed.content);
-
-        return {
-          structuredContent: result,
-          content: buildTextContent(JSON.stringify(result)),
-        };
-      } catch (error) {
-        return buildErrorResponse('kit_env_raw_write', error);
-      }
-    },
-  );
-}
-
-function buildErrorResponse(tool: string, error: unknown) {
-  const message = `${tool} failed: ${toErrorMessage(error)}`;
-
-  return {
-    isError: true,
-    content: buildTextContent(message),
-  };
-}
-
-function toErrorMessage(error: unknown) {
-  if (error instanceof Error) {
-    return error.message;
+/** The package service, typed with the kit's two modes. */
+export class KitEnvService extends EnvInspectorService {
+  override getAppState(mode: EnvMode = 'development') {
+    return super.getAppState(mode) as Promise<AppEnvState[]>;
   }
-
-  return 'Unknown error';
 }
 
-function buildTextContent(text: string): TextContent[] {
-  return [{ type: 'text', text }];
+export function registerKitEnvTools(
+  server: McpServer,
+  rootPath?: string,
+  service: KitEnvService = createKitEnvService(createKitEnvDeps(rootPath)),
+) {
+  registerEnvInspectorTools(server, service, { prefix: 'kit_' });
 }
 
-export {
-  createKitEnvService,
-  createKitEnvDeps,
-  envVariables,
-  findWorkspaceRoot,
-  scanMonorepoEnv,
-  processEnvDefinitions,
-  getEnvState,
-  getVariable,
-} from './public-api';
-export type { KitEnvDeps };
+export function createKitEnvDeps(rootPath = process.cwd()): KitEnvDeps {
+  return createEnvInspectorDeps(rootPath, { settings: KIT_ENV_SETTINGS });
+}
+
+export function createKitEnvService(deps: KitEnvDeps = createKitEnvDeps()) {
+  return new KitEnvService(deps);
+}
+
+/** The effective value of one web app variable, read from the workspace root. */
+export function getVariable(key: string, mode: EnvMode) {
+  return createWorkspaceEnvService().getVariable(key, mode);
+}
+
+/** The resolved and validated variables of the web app for `mode`. */
+export function getEnvState(options: ScanOptions) {
+  return createWorkspaceEnvService(options.rootDir).getAppState(options.mode);
+}
+
+/** The definitions of every web app variable, in precedence order. */
+export function scanMonorepoEnv(options: ScanOptions): Promise<EnvFileInfo[]> {
+  const deps = createKitEnvDeps(
+    options.rootDir ?? findWorkspaceRoot(process.cwd()),
+  );
+
+  return scanEnvFiles({
+    rootPath: deps.rootPath,
+    mode: options.mode,
+    fs: deps,
+    apps: KIT_ENV_SETTINGS.apps,
+    envFiles: KIT_ENV_FILES,
+  });
+}
+
+export function processEnvDefinitions(envInfo: EnvFileInfo, mode: EnvMode) {
+  return processEnvFileDefinitions(envInfo, mode, {
+    model: envVariables,
+    envFiles: KIT_ENV_FILES,
+  }) as AppEnvState;
+}
+
+function createWorkspaceEnvService(rootPath?: string) {
+  return createKitEnvService(
+    createKitEnvDeps(rootPath ?? findWorkspaceRoot(process.cwd())),
+  );
+}
+
+export { envVariables, findWorkspaceRoot };
 export type { EnvVariableModel } from './model';
 export type {
-  EnvMode,
   AppEnvState,
   EnvFileInfo,
+  EnvMode,
   EnvVariableState,
 } from './types';
