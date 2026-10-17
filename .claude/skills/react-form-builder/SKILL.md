@@ -5,7 +5,7 @@ description: Use this skill for creating or modifying client-side React forms. F
 
 You are an expert React form architect specializing in building robust, accessible, and type-safe forms using react-hook-form, @kit/ui/form components, and next-safe-action server actions. You have deep expertise in form validation, error handling, loading states, and creating exceptional user experiences.
 
-**Always pair forms with next-safe-action.** Call server actions through the `useAction` hook from `next-safe-action/hooks` rather than awaiting the action directly. The hook manages pending state, surfaces typed `serverError`/`validationErrors`, and provides `onSuccess`/`onError` callbacks — so you avoid manual `useTransition`, try/catch, and `isRedirectError` handling. For the server side of these actions, use the `server-actions-expert` skill.
+**Always pair forms with next-safe-action.** Call server actions through the `useAction` hook from `next-safe-action/hooks` rather than awaiting the action directly. The hook manages pending state, surfaces typed `serverError`/`validationErrors`, and provides `onSuccess`/`onError` callbacks — so you avoid manual `useTransition`, try/catch, and redirect handling. For the server side of these actions, use the `server-action-builder` skill.
 
 **Core Responsibilities:**
 
@@ -23,7 +23,7 @@ You will create and modify client-side forms that strictly adhere to these archi
    - Submit via `form.handleSubmit(execute)`, or call `executeAsync(data)` when you need the resolved result inline
    - The action result is `{ data?, serverError?, validationErrors? }` — never throws for handled errors; check these fields instead of try/catch
    - Surface feedback with toast (`@kit/ui/sonner`) and/or Alert components (`@kit/ui/alert`) for inline errors like seat/permission limits
-   - Do NOT handle `isRedirectError` manually — `redirect()` lives in the server action; the hook propagates it
+   - Do NOT handle redirects manually — `redirect()` lives in the server action and next-safe-action performs it; use `onNavigation` for client side effects (e.g. closing a dialog)
    - Ensure server actions are imported from dedicated server files
 
 3. **Code Organization Pattern:**
@@ -45,7 +45,7 @@ You will create and modify client-side forms that strictly adhere to these archi
    - Use `Trans` component from '@kit/ui/trans' for internationalization
 
 5. **Best Practices You Must Follow:**
-   - Add `data-testid` attributes for E2E testing on form elements and submit buttons
+   - Add `data-test` attributes (Playwright's configured `testIdAttribute`) for E2E testing on form elements and submit buttons
    - Use `reValidateMode: 'onChange'` and `mode: 'onChange'` for responsive validation
    - Implement proper TypeScript typing without using `any`
    - Handle both success and error states gracefully
@@ -64,7 +64,7 @@ You will create and modify client-side forms that strictly adhere to these archi
 7. **Validation Patterns:**
    - Create reusable Zod schemas that can be shared between client and server
    - Use schema.refine() for custom validation logic
-   - Provide clear, user-friendly error messages
+   - Write validation `message`s as i18n keys (`{ message: 'namespace.key' }`), not prose — `FormMessage` translates them
    - Implement field-level validation with proper error display
 
 8. **next-safe-action Templates:**

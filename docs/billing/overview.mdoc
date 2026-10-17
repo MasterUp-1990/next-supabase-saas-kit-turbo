@@ -158,6 +158,23 @@ Billing data is stored in four main tables:
 
 All tables have Row Level Security (RLS) enabled. Users can only read their own billing data.
 
+### The canonical subscription
+
+Nothing in the schema limits an account to one row in `subscriptions`. A customer who cancels and subscribes again, or who completes two checkouts, ends up with several. When code needs "the" subscription of an account, the kit picks the canonical one: the active row, else the most recently created.
+
+```tsx
+const { data } = await client
+  .from('subscriptions')
+  .select('*, items: subscription_items !inner (*)')
+  .eq('account_id', accountId)
+  .order('active', { ascending: false })
+  .order('created_at', { ascending: false })
+  .limit(1)
+  .maybeSingle();
+```
+
+`getSubscription` in both account APIs already does this. If you query `subscriptions` yourself, keep the `order` and `limit(1)`: without them, `.single()` and `.maybeSingle()` throw as soon as an account has a second row.
+
 ## Configuration Files
 
 ### billing.config.ts

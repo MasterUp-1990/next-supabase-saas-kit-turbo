@@ -121,7 +121,10 @@ class InvitationContextBuilder {
       )
       .eq('account_id', accountId)
       .eq('active', true)
-      .single();
+      // an account can hold several active rows: take the newest
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
 
     return subscription
       ? {

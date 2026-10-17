@@ -4,7 +4,7 @@ Real examples from the Makerkit codebase.
 
 ## Team Billing Action
 
-Location: `apps/web/app/home/[account]/billing/_lib/server/server-actions.ts`
+Location: `apps/web/app/[locale]/home/[account]/billing/_lib/server/server-actions.ts`
 
 ```typescript
 'use server';
@@ -68,7 +68,7 @@ export const updateProfileAction = authActionClient
 
     if (error) {
       logger.error({ ...ctx, error }, 'Failed to update profile');
-      throw error;
+      throw new Error('account.updateProfileError');
     }
 
     logger.info(ctx, 'Profile updated successfully');
@@ -89,6 +89,8 @@ import { redirect } from 'next/navigation';
 import { authActionClient } from '@kit/next/safe-action';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { getLogger } from '@kit/shared/logger';
+
 import { CreateProjectSchema } from '../schemas/project.schema';
 import { createProjectService } from './project.service';
 
@@ -96,7 +98,7 @@ export const createProjectAction = authActionClient
   .inputSchema(CreateProjectSchema)
   .action(async ({ parsedInput: data }) => {
     const client = getSupabaseServerClient();
-    const service = createProjectService(client);
+    const service = createProjectService(client, await getLogger());
     const project = await service.create(data);
 
     redirect(`/home/${data.accountSlug}/projects/${project.id}`);
@@ -134,23 +136,25 @@ export const deleteItemAction = authActionClient
 
     if (error) {
       logger.error({ ...ctx, error }, 'Failed to delete item');
-      throw error;
+      throw new Error('items.deleteFailed');
     }
 
     logger.info(ctx, 'Item deleted successfully');
 
-    revalidatePath(`/home/${data.accountSlug}/items`);
+    revalidatePath('/home/[account]/items', 'page');
 
     return { success: true };
   });
 ```
 
-## Error Handling with isRedirectError
+## Error Handling with a Redirect
+
+Keep `redirect()` outside the `try`/`catch` — next-safe-action handles the navigation error itself and fires the
+client's `onNavigation` callback. Never reach for `isRedirectError`.
 
 ```typescript
 'use server';
 
-import { isRedirectError } from 'next/dist/client/components/redirect-error';
 import { redirect } from 'next/navigation';
 
 import { authActionClient } from '@kit/next/safe-action';
@@ -168,16 +172,13 @@ export const submitFormAction = authActionClient
       logger.info(ctx, 'Submitting form');
 
       await processForm(data);
-
-      logger.info(ctx, 'Form submitted, redirecting');
-
-      redirect('/success');
     } catch (error) {
-      if (!isRedirectError(error)) {
-        logger.error({ ...ctx, error }, 'Form submission failed');
-        throw error;
-      }
-      throw error; // Re-throw redirect
+      logger.error({ ...ctx, error }, 'Form submission failed');
+      throw new Error('forms.submitFailed');
     }
+
+    logger.info(ctx, 'Form submitted, redirecting');
+
+    redirect('/success');
   });
 ```

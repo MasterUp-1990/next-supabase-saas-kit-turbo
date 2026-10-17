@@ -141,7 +141,7 @@ async function AccountSwitcher() {
 
 ### getSubscription
 
-Returns the subscription data for a given account, including all subscription items (line items).
+Returns the subscription data for a given account, including all subscription items (line items). If the account has several subscription rows, it returns the canonical one: the active subscription, else the most recently created. See [the canonical subscription](/docs/billing/overview#the-canonical-subscription).
 
 ```tsx
 const subscription = await api.getSubscription(accountId);

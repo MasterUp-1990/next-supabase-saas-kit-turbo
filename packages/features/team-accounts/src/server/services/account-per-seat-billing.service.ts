@@ -52,6 +52,11 @@ class AccountPerSeatBillingService {
       )
       .eq('account_id', accountId)
       .eq('subscription_items.type', 'per_seat')
+      // the per-seat filter applies first: among subscriptions with a
+      // per-seat item, the active one, else the newest
+      .order('active', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (error) {

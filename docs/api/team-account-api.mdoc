@@ -156,7 +156,7 @@ const workspace = await api.getAccountWorkspace(slug);
 
 ### getSubscription
 
-Returns the subscription data for a team account, including all line items.
+Returns the subscription data for a team account, including all line items. If the account has several subscription rows, it returns the canonical one: the active subscription, else the most recently created. See [the canonical subscription](/docs/billing/overview#the-canonical-subscription).
 
 ```tsx
 const subscription = await api.getSubscription(accountId);

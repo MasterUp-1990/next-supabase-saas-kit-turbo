@@ -157,18 +157,15 @@ export const createTask = authActionClient
 
 ### Route Handlers
 
-And in Route Handlers:
+In Route Handlers, use the `client` that `enhanceRouteHandler` passes in instead of creating one. It is the cookie-based server client for web requests and a bearer-token client for mobile callers; `getSupabaseServerClient()` would only cover the first. See [Route Handlers](route-handlers#the-client-argument).
 
 ```tsx
 import { NextResponse } from 'next/server';
-import { getSupabaseServerClient } from '@kit/supabase/server-client';
 import { enhanceRouteHandler } from '@kit/next/routes';
 
 export const GET = enhanceRouteHandler(
-  async ({ user }) => {
-    const supabase = getSupabaseServerClient();
-
-    const { data, error } = await supabase
+  async ({ user, client }) => {
+    const { data, error } = await client
       .from('tasks')
       .select('*')
       .eq('created_by', user.id);

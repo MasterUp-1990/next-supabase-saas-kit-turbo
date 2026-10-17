@@ -53,6 +53,42 @@ server-side slug lookup would perform. See `RemoveMemberSchema` in
 `packages/features/team-accounts`. Resolving a slug to an id inside the action is
 a wasted round-trip and an extra failure branch.
 
+## Route handlers: use the `client` you are given
+
+`enhanceRouteHandler` passes the handler `{ request, body, user, params, client }`.
+`client` is built from the caller's credentials (`src/routes/index.ts`):
+
+- `Authorization: Bearer <jwt>` → a client carrying that token (mobile / native)
+- no bearer → the cookie-based server client (web)
+
+Query with that `client`. Calling `getSupabaseServerClient()` inside the handler
+reads cookies only, so it works from the browser but runs as anonymous for a
+bearer caller: queries fail with permission errors or come back empty. Web-only
+testing never shows it.
+
+```ts
+// WRONG — anonymous for mobile callers
+export const GET = enhanceRouteHandler(async ({ user }) => {
+  const client = getSupabaseServerClient();
+  // ...
+});
+
+// RIGHT — whichever credentials the caller sent
+export const GET = enhanceRouteHandler(async ({ user, client }) => {
+  const api = createTeamAccountsApi(client);
+  // ...
+});
+```
+
+Two exceptions, both `auth: false` routes:
+
+- **Public data** — `client` is still built from any bearer sent, and nothing
+  checks it first. An expired token makes every query fail with `401 JWT
+  expired` (PGRST303) instead of running as anon. Use `getSupabaseServerClient()`
+  for data anyone may read.
+- **Provider webhooks** — no user at all; use the admin client after verifying
+  the signature, as in `apps/web/app/api/billing/webhook`.
+
 ## Revalidating
 
 Match the existing call sites: the **bracketed route pattern plus a type**.

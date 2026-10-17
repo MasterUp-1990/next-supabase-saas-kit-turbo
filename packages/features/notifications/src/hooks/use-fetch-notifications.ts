@@ -56,7 +56,8 @@ function useFetchInitialNotifications(props: { accountIds: string[] }) {
         )
         .in('account_id', props.accountIds)
         .eq('dismissed', false)
-        .gt('expires_at', now)
+        // a NULL expiry means "never expires"; `gt` alone would drop it
+        .or(`expires_at.is.null,expires_at.gt."${now}"`)
         .order('created_at', { ascending: false })
         .limit(10);
 

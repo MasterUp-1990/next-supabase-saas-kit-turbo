@@ -103,6 +103,7 @@ export function NotificationsPopover(params: {
   return (
     <Popover modal open={open} onOpenChange={setOpen}>
       <PopoverTrigger
+        data-test={'notifications-trigger'}
         render={<Button size="icon-lg" variant="ghost" className="relative" />}
       >
         <Bell className={'size-4 min-h-3 min-w-3'} />
@@ -120,6 +121,7 @@ export function NotificationsPopover(params: {
       </PopoverTrigger>
 
       <PopoverContent
+        data-test={'notifications-popover'}
         className={'flex w-full max-w-96 flex-col gap-0 lg:min-w-64'}
         align={'start'}
         sideOffset={10}
@@ -160,6 +162,7 @@ export function NotificationsPopover(params: {
             return (
               <div
                 key={notification.id.toString()}
+                data-test={'notification-item'}
                 className={cn(
                   'flex min-h-14 flex-col items-start justify-center gap-y-1 px-1',
                 )}

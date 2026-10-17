@@ -8,9 +8,13 @@ When a service needs more than just a database client, inject all dependencies.
 // _lib/server/invoice.service.ts
 import type { SupabaseClient } from '@supabase/supabase-js';
 
+import type { Logger } from '@kit/shared/logger';
+import type { Database, Tables } from '@kit/supabase/database';
+
 interface InvoiceServiceDeps {
-  client: SupabaseClient;
-  storage: SupabaseClient['storage'];
+  client: SupabaseClient<Database>;
+  storage: SupabaseClient<Database>['storage'];
+  logger: Logger;
 }
 
 export function createInvoiceService(deps: InvoiceServiceDeps) {
@@ -27,7 +31,14 @@ class InvoiceService {
       .eq('id', invoiceId)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      this.deps.logger.error(
+        { name: 'generate-invoice-pdf', invoiceId, error },
+        'Failed to load invoice',
+      );
+
+      throw new Error('invoices.notFound');
+    }
 
     const pdf = this.buildPdf(invoice);
 
@@ -35,12 +46,19 @@ class InvoiceService {
       .from('invoices')
       .upload(`${invoiceId}.pdf`, pdf);
 
-    if (uploadError) throw uploadError;
+    if (uploadError) {
+      this.deps.logger.error(
+        { name: 'generate-invoice-pdf', invoiceId, error: uploadError },
+        'Failed to upload invoice PDF',
+      );
+
+      throw new Error('invoices.uploadFailed');
+    }
 
     return { url: upload.path };
   }
 
-  private buildPdf(invoice: Record<string, unknown>): Uint8Array {
+  private buildPdf(invoice: Tables<'invoices'>): Uint8Array {
     // Pure logic — no I/O
     // ...
     return new Uint8Array();
@@ -53,24 +71,25 @@ class InvoiceService {
 ```typescript
 'use server';
 
-import { enhanceAction } from '@kit/next/actions';
+import { authActionClient } from '@kit/next/safe-action';
+import { getLogger } from '@kit/shared/logger';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
 import { GenerateInvoiceSchema } from '../schemas/invoice.schema';
 import { createInvoiceService } from './invoice.service';
 
-export const generateInvoicePdfAction = enhanceAction(
-  async function (data, user) {
+export const generateInvoicePdfAction = authActionClient
+  .inputSchema(GenerateInvoiceSchema)
+  .action(async ({ parsedInput: data }) => {
     const client = getSupabaseServerClient();
     const service = createInvoiceService({
       client,
       storage: client.storage,
+      logger: await getLogger(),
     });
 
     return service.generatePdf(data.invoiceId);
-  },
-  { auth: true, schema: GenerateInvoiceSchema },
-);
+  });
 ```
 
 ## Service Composing Other Services
@@ -118,25 +137,28 @@ class OnboardingService {
 ```typescript
 'use server';
 
+import { authActionClient } from '@kit/next/safe-action';
+import { getLogger } from '@kit/shared/logger';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
+import { OnboardAccountSchema } from '../schemas/onboarding.schema';
+import { createNotificationService } from './notification.service';
 import { createOnboardingService } from './onboarding.service';
 import { createProjectService } from './project.service';
-import { createNotificationService } from './notification.service';
 
-export const onboardAccountAction = enhanceAction(
-  async function (data, user) {
+export const onboardAccountAction = authActionClient
+  .inputSchema(OnboardAccountSchema)
+  .action(async ({ parsedInput: data }) => {
     const client = getSupabaseServerClient();
+    const logger = await getLogger();
 
     const service = createOnboardingService({
-      projects: createProjectService(client),
+      projects: createProjectService(client, logger),
       notifications: createNotificationService(client),
     });
 
     return service.onboardAccount(data);
-  },
-  { auth: true, schema: OnboardAccountSchema },
-);
+  });
 ```
 
 ## Pure Validation Service (No I/O)
@@ -193,8 +215,10 @@ it('applies yearly discount', () => {
 Full mock pattern for Supabase client:
 
 ```typescript
-import { vi } from 'vitest';
 import type { SupabaseClient } from '@supabase/supabase-js';
+import { vi } from 'vitest';
+
+import type { Logger } from '@kit/shared/logger';
 
 /**
  * Creates a chainable mock that mimics Supabase's query builder.
@@ -247,12 +271,25 @@ export function createMockSupabaseClient(
     chain,
   } as unknown as SupabaseClient & { chain: typeof chain };
 }
+
+/**
+ * A silent logger whose calls can be asserted on.
+ */
+export function createStubLogger() {
+  return {
+    info: vi.fn(),
+    error: vi.fn(),
+    warn: vi.fn(),
+    debug: vi.fn(),
+    fatal: vi.fn(),
+  } as unknown as Logger;
+}
 ```
 
 Usage:
 
 ```typescript
-import { createMockSupabaseClient } from '../test-utils';
+import { createMockSupabaseClient, createStubLogger } from '../test-utils';
 import { createProjectService } from '../project.service';
 
 it('lists projects for an account', async () => {
@@ -262,7 +299,7 @@ it('lists projects for an account', async () => {
   ];
 
   const client = createMockSupabaseClient({ data: projects, error: null });
-  const service = createProjectService(client);
+  const service = createProjectService(client, createStubLogger());
 
   const result = await service.list('acc-1');
 

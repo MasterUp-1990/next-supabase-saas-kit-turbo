@@ -74,11 +74,11 @@ Walk every in-scope object against this catalog. Each item is an attack, not a s
 14. **`auth.uid()` inside definer functions** still resolves to the *caller* — good — but verify the function doesn't accept a `user_id` param that it trusts instead of deriving identity from `auth.uid()`.
 
 ### E. Views & performance-correctness
-15. **Views without `security_invoker = true`.** A view over an RLS table defaults (pre-PG15 behavior / when not set) to running with the *view owner's* privileges, bypassing the querying user's RLS entirely. Both views in `16-account-views.sql` set `(security_invoker = true)` — any new view over tenant data must too.
+15. **Views without `security_invoker = true`.** A view over an RLS table defaults (pre-PG15 behavior / when not set) to running with the *view owner's* privileges, bypassing the querying user's RLS entirely. Both views in `15-account-views.sql` set `(security_invoker = true)` — any new view over tenant data must too.
 16. **`auth.uid()` not wrapped as `(select auth.uid())`.** Beyond performance (per-row re-eval), the wrapped form is the codebase convention; unwrapped calls in new policies are a smell worth flagging (correctness is unaffected but consistency/perf is).
 
 ### F. Storage
-17. **`storage.objects` policies** (`17-storage.sql`) must scope by `bucket_id` AND ownership (`kit.get_storage_filename_as_uuid(name)` → account). A policy missing the `bucket_id` clause leaks across buckets; one missing the ownership clause leaks across tenants within a bucket.
+17. **`storage.objects` policies** (`16-storage.sql`) must scope by `bucket_id` AND ownership (`kit.get_storage_filename_as_uuid(name)` → account). A policy missing the `bucket_id` clause leaks across buckets; one missing the ownership clause leaks across tenants within a bucket.
 
 ---
 
@@ -86,7 +86,7 @@ Walk every in-scope object against this catalog. Each item is an attack, not a s
 
 **This is what separates this skill from a read-through.** For every plausible finding from Stage 2 — and for every isolation guarantee you want to *confirm* — write a pgTAP test that performs the attack as the attacking user and asserts it fails. Tests live in `apps/web/supabase/tests/database/*.test.sql`.
 
-Model them on the existing suite (e.g. `invitations.test.sql`, `memberships.test.sql`, `active-account.test.sql`). Use the makerkit/pgTAP helpers already in `00000-makerkit-helpers.sql`:
+Model them on the existing suite (e.g. `invitations.test.sql`, `memberships.test.sql`, `team-accounts.test.sql`). Use the makerkit/pgTAP helpers already in `00000-makerkit-helpers.sql`:
 
 - `tests.create_supabase_user('handle', 'email')` — create isolated test users (don't rely on seeded users; e2e mutates them).
 - `set local role service_role;` then `public.create_team_account('Name', tests.get_supabase_uid('handle'), 'slug');` — create a team account owned by a user (do NOT authenticate first, or the new-account trigger double-creates the owner membership).

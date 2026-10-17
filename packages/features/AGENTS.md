@@ -18,6 +18,7 @@
 6. ALWAYS wrap admin pages with `AdminGuard`
 7. ALWAYS use `getLogger()` from `@kit/shared/logger` for structured logging — NEVER `console.log` in production code
 8. NEVER bypass permission checks when permissions exist — use `api.hasPermission({ accountId, userId, permission })`
+9. NEVER read "the" subscription with a bare `.single()` / `.maybeSingle()` — an account can hold several rows. Use `api.getSubscription(accountId)`, or order by `active` desc, then `created_at` desc, and `.limit(1)` (the canonical subscription, `docs/billing/overview.mdoc`)
 
 ## Key Imports
 

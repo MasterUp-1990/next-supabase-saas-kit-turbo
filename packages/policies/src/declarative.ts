@@ -1,5 +1,7 @@
 import type { z } from 'zod';
 
+import { getLogger } from '@kit/shared/logger';
+
 import type { PolicyContext, PolicyResult, PolicyStage } from './types';
 
 /**
@@ -223,16 +225,21 @@ export function definePolicy<
               },
             };
           } catch (error) {
+            // Results are returned to callers that serialize them to the
+            // browser, so keep the thrown detail in the server log only.
+            const logger = await getLogger();
+
+            logger.error(
+              { name: 'policy-evaluation', policyId: config.id, stage, error },
+              'Policy evaluation threw',
+            );
+
             return deny({
               code: 'POLICY_EVALUATION_ERROR',
-              message:
-                error instanceof Error
-                  ? error.message
-                  : 'Policy evaluation failed',
+              message: 'common.genericError',
               metadata: {
                 policyId: config.id,
                 stage,
-                error: error instanceof Error ? error.message : 'Unknown error',
               },
             });
           }

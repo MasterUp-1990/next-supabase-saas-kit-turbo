@@ -170,6 +170,11 @@ const ProductSchema = z
     currency: z.string().min(3).max(3),
     badge: z.string().optional(),
     features: z.array(z.string()).nonempty(),
+    // Quotas the product grants, e.g. { projects: 10, seats: null }.
+    // `null` means unlimited; a missing key means not included.
+    limits: z
+      .record(z.string(), z.number().nonnegative().nullable())
+      .optional(),
     enableDiscountField: z.boolean().optional(),
     highlighted: z.boolean().optional(),
     hidden: z.boolean().optional(),

@@ -81,7 +81,6 @@ The `enhanceRouteHandler` utility adds authentication, validation, and captcha v
 import { NextResponse } from 'next/server';
 import * as z from 'zod';
 import { enhanceRouteHandler } from '@kit/next/routes';
-import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
 const CreateTaskSchema = z.object({
   title: z.string().min(1),
@@ -89,14 +88,12 @@ const CreateTaskSchema = z.object({
 });
 
 export const POST = enhanceRouteHandler(
-  async ({ body, user, request }) => {
+  async ({ body, user, request, client }) => {
     // body is validated against the schema
     // user is the authenticated user
     // request is the original NextRequest
 
-    const supabase = getSupabaseServerClient();
-
-    const { data, error } = await supabase
+    const { data, error } = await client
       .from('tasks')
       .insert({
         title: body.title,
@@ -137,14 +134,26 @@ enhanceRouteHandler(handler, {
 });
 ```
 
+### The `client` argument
+
+The handler receives a Supabase `client` built from the caller's credentials:
+
+- A request with an `Authorization: Bearer <jwt>` header (a mobile or native app) gets a client carrying that token.
+- Any other request (the web app) gets the cookie-based server client.
+
+Use this `client` for queries instead of calling `getSupabaseServerClient()` in the handler. That function only reads cookies, so the route works from the browser but runs as an anonymous user for a bearer caller.
+
+Public endpoints (`auth: false`) are the exception. `client` is still built from any bearer token sent, and nothing checks it first, so a mobile app holding an expired session gets a `401 JWT expired` from Supabase even for public data. When the data is public anyway, use `getSupabaseServerClient()` as in the example above.
+
 ### Public Endpoints
 
 For public endpoints (no authentication required):
 
 ```tsx
 export const GET = enhanceRouteHandler(
-  async ({ request }) => {
-    // user will be undefined
+  async () => {
+    // user will be undefined. Use the cookie client here, not `client`:
+    // see the note below
     const supabase = getSupabaseServerClient();
 
     const { data } = await supabase
@@ -166,13 +175,10 @@ Access route parameters in Route Handlers:
 // app/api/tasks/[id]/route.ts
 import { NextResponse } from 'next/server';
 import { enhanceRouteHandler } from '@kit/next/routes';
-import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
 export const GET = enhanceRouteHandler(
-  async ({ user, params }) => {
-    const supabase = getSupabaseServerClient();
-
-    const { data, error } = await supabase
+  async ({ user, params, client }) => {
+    const { data, error } = await client
       .from('tasks')
       .select('*')
       .eq('id', params.id)
@@ -191,10 +197,8 @@ export const GET = enhanceRouteHandler(
 );
 
 export const DELETE = enhanceRouteHandler(
-  async ({ user, params }) => {
-    const supabase = getSupabaseServerClient();
-
-    const { error } = await supabase
+  async ({ user, params, client }) => {
+    const { error } = await client
       .from('tasks')
       .delete()
       .eq('id', params.id)
@@ -392,10 +396,9 @@ Handle file uploads with Route Handlers:
 // app/api/upload/route.ts
 import { NextResponse } from 'next/server';
 import { enhanceRouteHandler } from '@kit/next/routes';
-import { getSupabaseServerClient } from '@kit/supabase/server-client';
 
 export const POST = enhanceRouteHandler(
-  async ({ request, user }) => {
+  async ({ request, user, client }) => {
     const formData = await request.formData();
     const file = formData.get('file') as File;
 
@@ -423,10 +426,9 @@ export const POST = enhanceRouteHandler(
       );
     }
 
-    const supabase = getSupabaseServerClient();
     const fileName = `${user.id}/${Date.now()}-${file.name}`;
 
-    const { error } = await supabase.storage
+    const { error } = await client.storage
       .from('uploads')
       .upload(fileName, file);
 
@@ -437,7 +439,7 @@ export const POST = enhanceRouteHandler(
       );
     }
 
-    const { data: urlData } = supabase.storage
+    const { data: urlData } = client.storage
       .from('uploads')
       .getPublicUrl(fileName);
 
@@ -540,6 +542,25 @@ export async function POST(request: Request) {
   const event = JSON.parse(body);
   await processEvent(event);
 }
+```
+
+### Creating a Client Instead of Using `client`
+
+```tsx
+// WRONG: cookie-only client, anonymous for bearer (mobile) callers
+export const GET = enhanceRouteHandler(async ({ user }) => {
+  const supabase = getSupabaseServerClient();
+  const { data } = await supabase.from('tasks').select('*');
+
+  return NextResponse.json({ tasks: data });
+});
+
+// RIGHT: the client enhanceRouteHandler built for this caller
+export const GET = enhanceRouteHandler(async ({ user, client }) => {
+  const { data } = await client.from('tasks').select('*');
+
+  return NextResponse.json({ tasks: data });
+});
 ```
 
 ### Using Wrong Client in Webhooks

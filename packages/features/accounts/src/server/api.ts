@@ -78,6 +78,11 @@ class AccountsApi {
       .from('subscriptions')
       .select('*, items: subscription_items !inner (*)')
       .eq('account_id', accountId)
+      // An account can hold several subscription rows (re-subscribe, double
+      // checkout). The canonical one is the active row, else the newest.
+      .order('active', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     if (response.error) {

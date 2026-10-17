@@ -36,7 +36,7 @@ The `account_id` determines who sees the notification. Pass a user's personal ac
 | `type` | `'info' \| 'warning' \| 'error'` | No | `'info'` | Severity level |
 | `link` | `string` | No | `null` | URL to navigate on click |
 | `channel` | `'in_app' \| 'email'` | No | `'in_app'` | Delivery channel |
-| `expires_at` | `Date` | No | 1 month | Auto-expiration timestamp |
+| `expires_at` | `Date \| null` | No | 1 month | Auto-expiration timestamp; `null` never expires |
 
 ## Notification types
 

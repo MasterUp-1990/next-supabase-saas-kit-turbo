@@ -3,15 +3,14 @@ import { NextResponse } from 'next/server';
 import * as z from 'zod';
 
 import { enhanceRouteHandler } from '@kit/next/routes';
-import { getSupabaseServerClient } from '@kit/supabase/server-client';
+import { getLogger } from '@kit/shared/logger';
 import {
   createInvitationContextBuilder,
   createInvitationsPolicyEvaluator,
 } from '@kit/team-accounts/policies';
 
 export const GET = enhanceRouteHandler(
-  async function ({ params, user }) {
-    const client = getSupabaseServerClient();
+  async function ({ params, user, client }) {
     const { account } = z.object({ account: z.string() }).parse(params);
 
     try {
@@ -47,17 +46,25 @@ export const GET = enhanceRouteHandler(
 
       return NextResponse.json(result);
     } catch (error) {
+      // Log the detail server-side; the response carries only a stable key so
+      // internal messages (DB errors, lookups) never reach the browser.
+      const logger = await getLogger();
+
+      logger.error(
+        {
+          name: 'invitation-policies',
+          accountSlug: account,
+          userId: user.id,
+          error,
+        },
+        'Failed to evaluate invitation policies',
+      );
+
       return NextResponse.json(
         {
           allowed: false,
-          reasons: [
-            error instanceof Error ? error.message : 'Unknown error occurred',
-          ],
-          metadata: {
-            error: true,
-            originalError:
-              error instanceof Error ? error.message : String(error),
-          },
+          reasons: ['teams.policyCheckError'],
+          metadata: { error: true },
         },
         { status: 500 },
       );

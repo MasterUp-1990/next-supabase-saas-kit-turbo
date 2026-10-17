@@ -145,12 +145,11 @@ async function JoinTeamAccountContent(props: JoinTeamAccountPageProps) {
   }
 
   // we need to verify the user isn't already in the account
-  // we do so by checking if the user can read the account
-  // if the user can read the account, then they are already in the account
+  // we do so by checking if the user has a role on the account
   const { data: isAlreadyTeamMember } = await client.rpc(
-    'is_account_team_member',
+    'has_role_on_account',
     {
-      target_account_id: invitation.account.id,
+      account_id: invitation.account.id,
     },
   );
 

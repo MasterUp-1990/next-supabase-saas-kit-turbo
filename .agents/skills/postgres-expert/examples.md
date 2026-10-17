@@ -48,7 +48,7 @@ create policy accounts_memberships_select on public.accounts_memberships
 
 ## Subscriptions
 
-Location: `apps/web/supabase/schemas/11-subscriptions.sql`
+Location: `apps/web/supabase/schemas/09-subscriptions.sql`
 
 ```sql
 create table if not exists public.subscriptions (
@@ -70,7 +70,7 @@ create table if not exists public.subscriptions (
 
 ## Notifications
 
-Location: `apps/web/supabase/schemas/12-notifications.sql`
+Location: `apps/web/supabase/schemas/11-notifications.sql`
 
 ```sql
 create table if not exists public.notifications (
@@ -99,24 +99,67 @@ insert into storage.buckets (id, name, public)
 values ('account_image', 'account_image', true)
 on conflict (id) do nothing;
 
-create policy account_image on storage.objects for all using (
-  bucket_id = 'account_image'
-  and (
-    kit.get_storage_filename_as_uuid(name) = auth.uid()
-    or public.has_role_on_account(kit.get_storage_filename_as_uuid(name))
-  )
-)
-with check (
-  bucket_id = 'account_image'
-  and (
-    kit.get_storage_filename_as_uuid(name) = auth.uid()
-    or public.has_permission(
-      auth.uid(),
-      kit.get_storage_filename_as_uuid(name),
-      'settings.manage'
+-- One policy per command. DELETE consults only USING, so a single FOR ALL
+-- policy whose USING allows any member would let any member delete the file.
+create policy account_image_select on storage.objects for select
+  to authenticated using (
+    bucket_id = 'account_image'
+    and (
+      kit.get_storage_filename_as_uuid(name) = auth.uid()
+      or public.has_role_on_account(kit.get_storage_filename_as_uuid(name))
+    )
+  );
+
+create policy account_image_insert on storage.objects for insert
+  to authenticated with check (
+    bucket_id = 'account_image'
+    and (
+      kit.get_storage_filename_as_uuid(name) = auth.uid()
+      or public.has_permission(
+        auth.uid(),
+        kit.get_storage_filename_as_uuid(name),
+        'settings.manage'
+      )
+    )
+  );
+
+-- UPDATE needs the same write check in both USING and WITH CHECK
+create policy account_image_update on storage.objects for update
+  to authenticated using (
+    bucket_id = 'account_image'
+    and (
+      kit.get_storage_filename_as_uuid(name) = auth.uid()
+      or public.has_permission(
+        auth.uid(),
+        kit.get_storage_filename_as_uuid(name),
+        'settings.manage'
+      )
     )
   )
-);
+  with check (
+    bucket_id = 'account_image'
+    and (
+      kit.get_storage_filename_as_uuid(name) = auth.uid()
+      or public.has_permission(
+        auth.uid(),
+        kit.get_storage_filename_as_uuid(name),
+        'settings.manage'
+      )
+    )
+  );
+
+create policy account_image_delete on storage.objects for delete
+  to authenticated using (
+    bucket_id = 'account_image'
+    and (
+      kit.get_storage_filename_as_uuid(name) = auth.uid()
+      or public.has_permission(
+        auth.uid(),
+        kit.get_storage_filename_as_uuid(name),
+        'settings.manage'
+      )
+    )
+  );
 ```
 
 ## Enum Types
@@ -136,9 +179,10 @@ create type public.subscription_status as enum (
 
 -- App permissions
 create type public.app_permissions as enum (
-  'settings.manage',
+  'roles.manage',
   'billing.manage',
+  'settings.manage',
   'members.manage',
-  'invitations.manage'
+  'invites.manage'
 );
 ```

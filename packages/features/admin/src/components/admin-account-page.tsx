@@ -228,6 +228,10 @@ async function SubscriptionsTable(props: { accountId: string }) {
     .from('subscriptions')
     .select('*, subscription_items !inner (*)')
     .eq('account_id', props.accountId)
+    // canonical subscription: the active row, else the newest
+    .order('active', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
     .maybeSingle();
 
   if (error) {

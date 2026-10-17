@@ -47,23 +47,100 @@ create policy "table_manage" on public.table for all
 
 ### Storage Bucket Policy
 
+Reads require membership; writes require personal ownership or a permission. Mirrors
+`apps/web/supabase/schemas/16-storage.sql`.
+
 ```sql
-create policy bucket_policy on storage.objects for all using (
-  bucket_id = 'bucket_name'
-  and (
-    kit.get_storage_filename_as_uuid(name) = auth.uid()
-    or public.has_role_on_account(kit.get_storage_filename_as_uuid(name))
+-- One policy per command. DELETE consults only USING, so a single FOR ALL
+-- policy whose USING allows any member would let any member delete the file.
+create policy bucket_name_select on storage.objects for select
+  to authenticated using (
+    bucket_id = 'bucket_name'
+    and (
+      kit.get_storage_filename_as_uuid(name) = auth.uid()
+      or public.has_role_on_account(kit.get_storage_filename_as_uuid(name))
+    )
+  );
+
+create policy bucket_name_insert on storage.objects for insert
+  to authenticated with check (
+    bucket_id = 'bucket_name'
+    and (
+      kit.get_storage_filename_as_uuid(name) = auth.uid()
+      or public.has_permission(
+        auth.uid(),
+        kit.get_storage_filename_as_uuid(name),
+        'settings.manage'
+      )
+    )
+  );
+
+-- UPDATE needs the same write check in both USING and WITH CHECK
+create policy bucket_name_update on storage.objects for update
+  to authenticated using (
+    bucket_id = 'bucket_name'
+    and (
+      kit.get_storage_filename_as_uuid(name) = auth.uid()
+      or public.has_permission(
+        auth.uid(),
+        kit.get_storage_filename_as_uuid(name),
+        'settings.manage'
+      )
+    )
   )
-);
+  with check (
+    bucket_id = 'bucket_name'
+    and (
+      kit.get_storage_filename_as_uuid(name) = auth.uid()
+      or public.has_permission(
+        auth.uid(),
+        kit.get_storage_filename_as_uuid(name),
+        'settings.manage'
+      )
+    )
+  );
+
+create policy bucket_name_delete on storage.objects for delete
+  to authenticated using (
+    bucket_id = 'bucket_name'
+    and (
+      kit.get_storage_filename_as_uuid(name) = auth.uid()
+      or public.has_permission(
+        auth.uid(),
+        kit.get_storage_filename_as_uuid(name),
+        'settings.manage'
+      )
+    )
+  );
 ```
 
 ## Adding New Permissions
 
-```sql
--- Add to app_permissions enum
-ALTER TYPE public.app_permissions ADD VALUE 'feature.manage';
-COMMIT;
-```
+A permission nobody holds is useless: `has_permission()` reads `public.role_permissions`, so a new enum value with no
+seed row makes every check on it fail — including for owners. Always add both.
+
+1. **Declarative schema** (so a fresh `supabase:web:reset` is correct):
+   - add the value to `app_permissions` in `schemas/01-enums.sql`
+   - grant it in `schemas/17-roles-seed.sql`
+
+   ```sql
+   insert into public.role_permissions (role, permission)
+   values ('owner', 'feature.manage');
+   ```
+
+2. **Migrations** (for existing databases). `db:diff` emits the enum change but not seed data, so write the grant by
+   hand. Put it in a **separate, later migration**. Postgres rejects using an enum value in the same transaction that
+   added it ("unsafe use of new value").
+
+   ```sql
+   -- <ts1>_add_feature_manage_permission.sql
+   alter type public.app_permissions add value 'feature.manage';
+
+   -- <ts2>_grant_feature_manage_permission.sql
+   insert into public.role_permissions (role, permission)
+   values ('owner', 'feature.manage')
+   on conflict do nothing;
+   ```
 
 ## Standard Table Template and Migration Workflow
 

@@ -111,6 +111,11 @@ Products represent what you're selling (e.g., "Starter", "Pro", "Enterprise"). E
     'Priority support',
     'Advanced analytics',
   ],
+  limits: {
+    projects: 50,
+    storage_gb: 100,
+    api_calls: null, // unlimited
+  },
   plans: [/* ... */],
 }
 ```
@@ -126,9 +131,57 @@ Products represent what you're selling (e.g., "Starter", "Pro", "Enterprise"). E
 | `highlighted` | No | Visually highlight this product |
 | `enableDiscountField` | No | Show coupon/discount input at checkout |
 | `features` | No | Feature list for pricing table |
+| `limits` | No | Quotas the product grants, keyed by name. `null` means unlimited |
 | `hidden` | No | Hide from pricing table (for legacy plans) |
 
 The `id` is your internal identifier. It doesn't need to match anything in Stripe or your payment provider.
+
+### Limits
+
+`features` is display text for the pricing table. `limits` is data your code can enforce: a record of quota names to numbers, set per product so the monthly and yearly plans of a tier share them.
+
+- A number is the quota (`projects: 50`).
+- `null` is unlimited.
+- A key missing from a product means the product doesn't include it. Treat it as `0`, not as unlimited.
+
+The kit validates the shape but does not enforce limits for you. Look up the product of the account's subscription and compare against its `limits`:
+
+```tsx
+import { getProductPlanPairByVariantId } from '@kit/billing';
+import { createAccountsApi } from '@kit/accounts/api';
+
+import billingConfig from '~/config/billing.config';
+
+function getProductLimits(variantId: string | undefined) {
+  if (!variantId) {
+    return {};
+  }
+
+  try {
+    return getProductPlanPairByVariantId(billingConfig, variantId).product.limits ?? {};
+  } catch {
+    // the price is not in billing.config (a legacy or dashboard-made price)
+    return {};
+  }
+}
+
+const subscription = await createAccountsApi(client).getSubscription(accountId);
+
+// only an active (or trialing) subscription grants its product's limits;
+// past_due and unpaid rows stay in the table with active = false
+const limits = subscription?.active
+  ? getProductLimits(subscription.items[0]?.variant_id)
+  : {};
+
+// undefined = not included, null = unlimited
+const limit = limits.projects;
+const allowed =
+  limit === null || (limit !== undefined && projectCount < limit);
+```
+
+With no subscription, or one that is no longer active, `limits` is empty and every quota reads as "not included". If you have a free tier, return its limits there instead of `{}`.
+
+Limit names are yours to choose. Use the same names everywhere you check them; a typo reads as "not included".
 
 ## Plans
 

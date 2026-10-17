@@ -20,12 +20,15 @@ Create validation schema in `_lib/schemas/`:
 import * as z from 'zod';
 
 export const CreateFeatureSchema = z.object({
-  name: z.string().min(1, 'Name is required'),
-  accountId: z.uuid('Invalid account ID'),
+  name: z.string().trim().min(1, { message: 'features.nameRequired' }),
+  accountId: z.uuid(),
 });
 
 export type CreateFeatureInput = z.output<typeof CreateFeatureSchema>;
 ```
+
+Validation `message`s are **i18n keys** (`'namespace.key'`), not prose — `FormMessage` passes them through `Trans`.
+See `packages/ui/AGENTS.md` → Zod.
 
 ### Step 2: Create Service Layer
 
@@ -38,14 +41,24 @@ Create service in `_lib/server/`:
 ```typescript
 // _lib/server/feature.service.ts
 import type { SupabaseClient } from '@supabase/supabase-js';
+
+import type { Database } from '@kit/supabase/database';
+import type { Logger } from '@kit/shared/logger';
+
 import type { CreateFeatureInput } from '../schemas/feature.schema';
 
-export function createFeatureService(client: SupabaseClient) {
-  return new FeatureService(client);
+export function createFeatureService(
+  client: SupabaseClient<Database>,
+  logger: Logger,
+) {
+  return new FeatureService(client, logger);
 }
 
 class FeatureService {
-  constructor(private readonly client: SupabaseClient) {}
+  constructor(
+    private readonly client: SupabaseClient<Database>,
+    private readonly logger: Logger,
+  ) {}
 
   async create(data: CreateFeatureInput) {
     const { data: result, error } = await this.client
@@ -57,15 +70,27 @@ class FeatureService {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      this.logger.error(
+        { name: 'create-feature', accountId: data.accountId, error },
+        'Failed to create feature',
+      );
+
+      throw new Error('features.createFailed');
+    }
 
     return result;
   }
 }
 ```
 
-The service never calls `getSupabaseServerClient()` — the caller provides the client. This keeps the service testable (
-pass a mock client) and reusable (any interface can supply its own client).
+The service never calls `getSupabaseServerClient()` or `getLogger()` — the caller provides both. This keeps the service
+testable (pass a mock client and a stub logger) and reusable (any interface can supply its own).
+
+**Never `throw error` with a Supabase error.** The action client is configured with
+`handleServerError: (error) => error.message`, so whatever you throw is serialized to the browser — a raw driver error
+ships RLS policy text and constraint names to anyone who can POST the action. Log the detail server-side, then throw a
+stable i18n key. See `packages/next/AGENTS.md` → "Errors reach the browser".
 
 ### Step 3: Create Server Action (Thin Adapter)
 
@@ -95,12 +120,12 @@ export const createFeatureAction = authActionClient
     logger.info(ctx, 'Creating feature');
 
     const client = getSupabaseServerClient();
-    const service = createFeatureService(client);
+    const service = createFeatureService(client, logger);
     const result = await service.create(data);
 
     logger.info({ ...ctx, featureId: result.id }, 'Feature created');
 
-    revalidatePath('/home/[account]/features');
+    revalidatePath('/home/[account]/features', 'page');
 
     return { success: true, data: result };
   });
@@ -129,9 +154,12 @@ export const publicFeatureAction = publicActionClient
    stubs and reusable across interfaces.
 3. **Schema in separate file** - Reusable between client and server
 4. **Logging** - Always log before and after operations
-5. **Revalidation** - Use `revalidatePath` after mutations
-6. **Trust RLS** - Don't add manual auth checks (RLS handles it)
-7. **Testable in isolation** - Because services accept their dependencies, you can test them with a mock client and no
+5. **Revalidation** - Use `revalidatePath` after mutations with the route-file pattern **plus a type**
+   (`revalidatePath('/home/[account]/features', 'page')`). The type is required when the path has a dynamic segment.
+   Never interpolate the slug into the path.
+6. **Errors are i18n keys** - Log driver errors server-side; throw `new Error('namespace.key')`, never the raw error
+7. **Trust RLS** - Don't add manual auth checks (RLS handles it)
+8. **Testable in isolation** - Because services accept their dependencies, you can test them with a mock client and no
    running infrastructure
 
 ## File Structure
