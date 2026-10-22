@@ -85,10 +85,10 @@ function ServerSideSortingExample({
     setIsLoading(true);
 
     // Simulate server request
-    const sortInfo =
-      newSorting.length > 0
-        ? `${newSorting[0].id} ${newSorting[0].desc ? 'DESC' : 'ASC'}`
-        : 'No sorting';
+    const [primarySort] = newSorting;
+    const sortInfo = primarySort
+      ? `${primarySort.id} ${primarySort.desc ? 'DESC' : 'ASC'}`
+      : 'No sorting';
 
     setLastSortAction(`Server request would be: ORDER BY ${sortInfo}`);
 
@@ -131,7 +131,7 @@ function ServerSideSortingExample({
           <div className="flex items-center gap-2">
             <span className="font-semibold">Current Sort State:</span>
             <code className="rounded bg-slate-100 px-2 py-1 text-xs">
-              {sorting.length > 0
+              {sorting[0]
                 ? `${sorting[0].id}: ${sorting[0].desc ? 'desc' : 'asc'}`
                 : 'none'}
             </code>
@@ -773,9 +773,10 @@ export function DataTableStory() {
                     id: 'select',
                     header: ({ table }) => (
                       <Checkbox
-                        checked={
-                          table.getIsAllPageRowsSelected() ||
-                          (table.getIsSomePageRowsSelected() && 'indeterminate')
+                        checked={table.getIsAllPageRowsSelected()}
+                        indeterminate={
+                          !table.getIsAllPageRowsSelected() &&
+                          table.getIsSomePageRowsSelected()
                         }
                         onCheckedChange={(value) =>
                           table.toggleAllPageRowsSelected(!!value)
@@ -863,7 +864,7 @@ export function DataTableStory() {
                 }
                 rowSelection={exampleRowSelection1}
                 onRowSelectionChange={setExampleRowSelection1}
-                onRowClick={(row) => {
+                onClick={({ row }) => {
                   console.log('Row clicked:', row.original);
                   // In a real app, might navigate to detail view
                   alert(`Row click: Viewing details for ${row.original.name}`);
@@ -996,10 +997,10 @@ export function DataTableStory() {
                       id: 'select',
                       header: ({ table }) => (
                         <Checkbox
-                          checked={
-                            table.getIsAllPageRowsSelected() ||
-                            (table.getIsSomePageRowsSelected() &&
-                              'indeterminate')
+                          checked={table.getIsAllPageRowsSelected()}
+                          indeterminate={
+                            !table.getIsAllPageRowsSelected() &&
+                            table.getIsSomePageRowsSelected()
                           }
                           onCheckedChange={(value) =>
                             table.toggleAllPageRowsSelected(!!value)
@@ -1070,14 +1071,11 @@ export function DataTableStory() {
                   sticky={true}
                   rowSelection={exampleRowSelection2}
                   onRowSelectionChange={setExampleRowSelection2}
-                  onRowClick={(row) => {
+                  onClick={({ row }) => {
                     console.log(
                       'Row clicked in full-screen layout:',
                       row.original,
                     );
-                  }}
-                  onRowDoubleClick={(row) => {
-                    alert(`Double-click: Quick edit for ${row.original.name}`);
                   }}
                 />
               </div>
@@ -1332,10 +1330,10 @@ export function DataTableStory() {
                       id: 'select',
                       header: ({ table }) => (
                         <Checkbox
-                          checked={
-                            table.getIsAllPageRowsSelected() ||
-                            (table.getIsSomePageRowsSelected() &&
-                              'indeterminate')
+                          checked={table.getIsAllPageRowsSelected()}
+                          indeterminate={
+                            !table.getIsAllPageRowsSelected() &&
+                            table.getIsSomePageRowsSelected()
                           }
                           onCheckedChange={(value) =>
                             table.toggleAllPageRowsSelected(!!value)
@@ -1436,20 +1434,7 @@ export function DataTableStory() {
                   }}
                   rowSelection={paginationRowSelection}
                   onRowSelectionChange={setPaginationRowSelection}
-                  onRowContextMenu={(row, event) => {
-                    event.preventDefault();
-                    const actions = [
-                      `Edit ${row.original.name}`,
-                      `Send message to ${row.original.name}`,
-                      `View ${row.original.name}'s profile`,
-                      '---',
-                      `Delete ${row.original.name}`,
-                    ];
-                    alert(
-                      `Right-click context menu for ${row.original.name}:\n\n${actions.join('\n')}`,
-                    );
-                  }}
-                  onRowClick={(row) => {
+                  onClick={({ row }) => {
                     console.log(
                       'Row clicked in pagination example:',
                       row.original,

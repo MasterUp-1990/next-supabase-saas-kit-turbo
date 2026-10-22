@@ -11,6 +11,7 @@ import {
   LanguagesIcon,
   LayoutDashboardIcon,
   MailIcon,
+  type LucideIcon,
 } from 'lucide-react';
 
 import {
@@ -27,7 +28,14 @@ import {
 } from '@kit/ui/sidebar';
 import { isRouteActive } from '@kit/ui/utils';
 
-const routes = [
+interface DevToolRoute {
+  label: string;
+  path: string;
+  Icon: LucideIcon;
+  children?: DevToolRoute[];
+}
+
+const routes: DevToolRoute[] = [
   {
     label: 'Dashboard',
     path: '/',
@@ -82,7 +90,7 @@ export function DevToolSidebar({
         <SidebarMenu>
           {routes.map((route) => (
             <SidebarMenuItem key={route.path || route.label}>
-              {'children' in route ? (
+              {route.children ? (
                 <>
                   <SidebarMenuButton>
                     <route.Icon className="h-4 w-4" />
@@ -98,7 +106,7 @@ export function DevToolSidebar({
                               <span>{child.label}</span>
                             </Link>
                           }
-                          isActive={isRouteActive(child.path, pathname, false)}
+                          isActive={isRouteActive(child.path, pathname)}
                         />
                       </SidebarMenuSubItem>
                     ))}
@@ -106,7 +114,7 @@ export function DevToolSidebar({
                 </>
               ) : (
                 <SidebarMenuButton
-                  isActive={isRouteActive(route.path, pathname, false)}
+                  isActive={isRouteActive(route.path, pathname)}
                   render={
                     <Link href={route.path}>
                       <route.Icon className="h-4 w-4" />

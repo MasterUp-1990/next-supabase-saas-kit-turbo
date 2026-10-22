@@ -49,7 +49,10 @@ const categoryColors: Record<string, string> = {
   'Text Processing': 'bg-purple-100 text-purple-800',
 };
 
-const categoryIcons: Record<string, React.ComponentType<any>> = {
+const categoryIcons: Record<
+  string,
+  React.ComponentType<{ className?: string }>
+> = {
   Triggers: ZapIcon,
   Authentication: ShieldIcon,
   Accounts: UserIcon,
@@ -79,10 +82,7 @@ export function FunctionBrowser({
   // Group functions by category
   const functionsByCategory = filteredFunctions.reduce(
     (acc, func) => {
-      if (!acc[func.category]) {
-        acc[func.category] = [];
-      }
-      acc[func.category].push(func);
+      (acc[func.category] ??= []).push(func);
       return acc;
     },
     {} as Record<string, DatabaseFunction[]>,

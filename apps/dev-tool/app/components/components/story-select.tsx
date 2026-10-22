@@ -13,7 +13,7 @@ import type { SelectOption } from '../lib/story-utils';
 interface StorySelectProps<T = string> {
   value: T;
   onValueChange: (value: T) => void;
-  options: SelectOption<T>[];
+  options: readonly SelectOption<T>[];
   placeholder?: string;
   className?: string;
 }
@@ -28,7 +28,12 @@ export function StorySelect<T extends string = string>({
   const selectedOption = options.find((opt) => opt.value === value);
 
   return (
-    <Select value={value} onValueChange={onValueChange}>
+    <Select
+      value={value}
+      onValueChange={(next) => {
+        if (next !== null) onValueChange(next);
+      }}
+    >
       <SelectTrigger className={cn('min-h-[3.5rem] py-2', className)}>
         <div className="flex w-full items-center">
           {selectedOption ? (
@@ -103,11 +108,11 @@ export function StorySelect<T extends string = string>({
 interface SimpleStorySelectProps<T = string> {
   value: T;
   onValueChange: (value: T) => void;
-  options: Array<{
+  options: readonly {
     value: T;
     label: string;
     description: string;
-  }>;
+  }[];
   placeholder?: string;
   className?: string;
 }
@@ -122,7 +127,12 @@ export function SimpleStorySelect<T extends string = string>({
   const selectedOption = options.find((opt) => opt.value === value);
 
   return (
-    <Select value={value} onValueChange={onValueChange}>
+    <Select
+      value={value}
+      onValueChange={(next) => {
+        if (next !== null) onValueChange(next);
+      }}
+    >
       <SelectTrigger className={cn('min-h-[3rem] py-2', className)}>
         <div className="flex w-full items-center">
           {selectedOption ? (

@@ -108,6 +108,10 @@ Concrete suggestions from Track A where code could be:
 - More testable (framework-coupled, hard to unit test)
 - More idiomatic for this codebase (AGENTS.md patterns)
 
+### Safe because
+
+Most changes that look risky are safe because of one fact, for example "the policy only lets members of the row's account update it" or "this cache entry is never read after the redirect". Name that fact for this change, using the diff and Track B's verdicts. Then give the proof level it reached: cited (`file:line`), traced (you walked the failure path and it does not get there), or ran (a test or a throwaway script outside the repository exercised the real code). If nothing proves it, write **unproven** and name the cheapest test that would. A change that is safe for several independent reasons gets one line per reason. If the change is not safe, name the fact it would need and where that fact fails.
+
 ### Verdict Summary
 
 | Category | Status | Notes |

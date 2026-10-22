@@ -33,7 +33,7 @@ public.is_super_admin()
 | Client hook   | `useSupabase` from `@kit/supabase/hooks/use-supabase`                            |
 | Admin client  | `getSupabaseServerAdminClient` from `@kit/supabase/server-admin-client`          |
 | Require user  | `requireUser` from `@kit/supabase/require-user`                                  |
-| MFA check     | `checkRequiresMultiFactorAuthentication` from `@kit/supabase/check-requires-mfa` |
+| Session + MFA | `verifySessionAssurance` from `@kit/supabase/check-requires-mfa` (verified claims and step-up in one call; throws `InvalidSessionError` for a revoked session) |
 
 ## Exemplar
 

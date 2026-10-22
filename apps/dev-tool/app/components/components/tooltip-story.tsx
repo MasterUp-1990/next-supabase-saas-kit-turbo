@@ -28,7 +28,6 @@ import { Checkbox } from '@kit/ui/checkbox';
 import { Input } from '@kit/ui/input';
 import { Label } from '@kit/ui/label';
 import { Separator } from '@kit/ui/separator';
-import { Switch } from '@kit/ui/switch';
 import {
   Tooltip,
   TooltipContent,
@@ -48,7 +47,6 @@ interface TooltipControls {
   alignOffset: number;
   delayDuration: number;
   skipDelayDuration: number;
-  disableHoverableContent: boolean;
   withArrow: boolean;
   triggerType: 'button' | 'icon' | 'text' | 'input';
   triggerVariant: 'default' | 'outline' | 'ghost' | 'destructive' | 'secondary';
@@ -102,7 +100,6 @@ function TooltipStory() {
     alignOffset: 0,
     delayDuration: 700,
     skipDelayDuration: 300,
-    disableHoverableContent: false,
     withArrow: false,
     triggerType: 'button',
     triggerVariant: 'outline',
@@ -117,15 +114,13 @@ function TooltipStory() {
 
   const generateCode = () => {
     const providerProps = {
-      delayDuration: controls.delayDuration,
-      skipDelayDuration: controls.skipDelayDuration,
-      disableHoverableContent: controls.disableHoverableContent,
+      delay: controls.delayDuration,
+      timeout: controls.skipDelayDuration,
     };
 
     const providerPropsString = generatePropsString(providerProps, {
-      delayDuration: 700,
-      skipDelayDuration: 300,
-      disableHoverableContent: false,
+      delay: 700,
+      timeout: 300,
     });
 
     const contentProps = {
@@ -219,9 +214,8 @@ function TooltipStory() {
     return (
       <div className="flex min-h-[200px] items-center justify-center">
         <TooltipProvider
-          delayDuration={controls.delayDuration}
-          skipDelayDuration={controls.skipDelayDuration}
-          disableHoverableContent={controls.disableHoverableContent}
+          delay={controls.delayDuration}
+          timeout={controls.skipDelayDuration}
         >
           <Tooltip>
             {renderTrigger()}
@@ -369,19 +363,6 @@ function TooltipStory() {
             }
           />
         </div>
-      </div>
-
-      <div className="flex items-center justify-between">
-        <Label htmlFor="disableHoverableContent">
-          Disable Hoverable Content
-        </Label>
-        <Switch
-          id="disableHoverableContent"
-          checked={controls.disableHoverableContent}
-          onCheckedChange={(checked) =>
-            updateControl('disableHoverableContent', checked)
-          }
-        />
       </div>
     </>
   );
@@ -692,16 +673,6 @@ function TooltipStory() {
                     <td className="p-3 font-mono text-sm">300</td>
                     <td className="p-3">
                       Delay to skip when moving between tooltips (ms)
-                    </td>
-                  </tr>
-                  <tr>
-                    <td className="p-3 font-mono text-sm">
-                      disableHoverableContent
-                    </td>
-                    <td className="p-3 font-mono text-sm">boolean</td>
-                    <td className="p-3 font-mono text-sm">false</td>
-                    <td className="p-3">
-                      Prevent tooltip from being hoverable
                     </td>
                   </tr>
                 </tbody>

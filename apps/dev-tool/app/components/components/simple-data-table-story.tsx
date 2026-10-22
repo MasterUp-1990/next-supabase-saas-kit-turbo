@@ -37,15 +37,6 @@ import { useStoryControls } from '../lib/story-utils';
 import { ComponentStoryLayout } from './story-layout';
 import { SimpleStorySelect } from './story-select';
 
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  role: 'Admin' | 'User' | 'Editor';
-  status: 'Active' | 'Inactive' | 'Pending';
-  createdAt: Date;
-}
-
 interface SimpleTableControls {
   dataCount: number;
   showActions: boolean;

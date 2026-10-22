@@ -30,11 +30,7 @@ import { Separator } from '@kit/ui/separator';
 import { Switch } from '@kit/ui/switch';
 import { Textarea } from '@kit/ui/textarea';
 
-import {
-  formatCodeBlock,
-  generatePropsString,
-  useStoryControls,
-} from '../lib/story-utils';
+import { formatCodeBlock, useStoryControls } from '../lib/story-utils';
 import { ComponentStoryLayout } from './story-layout';
 import { SimpleStorySelect } from './story-select';
 
@@ -67,17 +63,6 @@ export function FieldStory() {
     useLegend: true,
     includeSeparator: true,
   });
-
-  const fieldPropsString = useMemo(
-    () =>
-      generatePropsString(
-        {
-          orientation: controls.orientation,
-        },
-        { orientation: 'vertical' },
-      ),
-    [controls.orientation],
-  );
 
   const generatedCode = useMemo(() => {
     const separatorLine = controls.includeSeparator
@@ -176,14 +161,7 @@ export function FieldStory() {
       "import { Switch } from '@kit/ui/switch';",
       "import { Textarea } from '@kit/ui/textarea';",
     ]);
-  }, [
-    controls.includeSeparator,
-    controls.orientation,
-    controls.showDescriptions,
-    controls.showErrors,
-    controls.useLegend,
-    fieldPropsString,
-  ]);
+  }, [controls]);
 
   const preview = (
     <Card>

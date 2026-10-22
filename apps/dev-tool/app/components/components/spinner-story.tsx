@@ -28,7 +28,7 @@ const sizeOptions = [
   { value: 'md', label: 'Medium', description: '24px (h-6 w-6)' },
   { value: 'lg', label: 'Large', description: '32px (h-8 w-8)' },
   { value: 'xl', label: 'Extra Large', description: '48px (h-12 w-12)' },
-];
+] as const;
 
 const sizeClassMap = {
   sm: 'h-4 w-4',
@@ -66,7 +66,7 @@ export function SpinnerStory() {
         <Label htmlFor="size">Size</Label>
         <SimpleStorySelect
           value={controls.size}
-          onValueChange={(value) => updateControl('size', value as any)}
+          onValueChange={(value) => updateControl('size', value)}
           options={sizeOptions}
         />
       </div>

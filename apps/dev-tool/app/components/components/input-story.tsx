@@ -211,8 +211,6 @@ export function InputStory() {
           value={inputValue}
           onChange={(e) => setInputValue(e.target.value)}
           className={cn(
-            controls.size === 'sm' && 'h-8 text-sm',
-            controls.size === 'lg' && 'h-10',
             controls.withIcon && controls.iconPosition === 'left' && 'pl-9',
             controls.withIcon && controls.iconPosition === 'right' && 'pr-9',
             controls.error &&

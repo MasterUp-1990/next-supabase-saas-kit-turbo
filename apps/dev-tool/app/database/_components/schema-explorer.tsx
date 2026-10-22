@@ -61,10 +61,7 @@ export function SchemaExplorer({
   // Group schemas by topic for better organization
   const schemasByTopic = filteredSchemas.reduce(
     (acc, schema) => {
-      if (!acc[schema.topic]) {
-        acc[schema.topic] = [];
-      }
-      acc[schema.topic].push(schema);
+      (acc[schema.topic] ??= []).push(schema);
       return acc;
     },
     {} as Record<string, SchemaFile[]>,
@@ -73,11 +70,6 @@ export function SchemaExplorer({
   const handleSchemaClick = (schema: SchemaFile) => {
     setSelectedSchema(schema);
     setIsDialogOpen(true);
-  };
-
-  const closeDialog = () => {
-    setIsDialogOpen(false);
-    setSelectedSchema(null);
   };
 
   return (

@@ -167,6 +167,7 @@ function EnvList({ appState }: { appState: AppEnvState }) {
       new Subject<{
         name: string;
         value: string;
+        mode: AppEnvState['mode'];
       }>(),
     [],
   );
@@ -175,10 +176,7 @@ function EnvList({ appState }: { appState: AppEnvState }) {
     const subscription = subject$
       .pipe(debounceTime(1000))
       .subscribe((props) => {
-        updateEnvironmentVariableAction({
-          ...props,
-          mode: appState.mode,
-        })
+        updateEnvironmentVariableAction(props)
           .then((result) => {
             toast.success(result.message);
           })
@@ -197,9 +195,10 @@ function EnvList({ appState }: { appState: AppEnvState }) {
       subject$.next({
         name: props.name,
         value: props.value,
+        mode: appState.mode,
       });
     },
-    [subject$],
+    [subject$, appState.mode],
   );
 
   const renderVariable = (varState: EnvVariableState) => {
@@ -955,37 +954,38 @@ function getEffectiveVariablesValue(
 function useUpdateFilteredVariables() {
   const router = useRouter();
 
-  const handleFilterChange = (key: string, value: boolean, reset = false) => {
-    const searchParams = new URLSearchParams(window.location.search);
-    const path = window.location.pathname;
+  return useCallback(
+    (key: string, value: boolean, reset = false) => {
+      const searchParams = new URLSearchParams(window.location.search);
+      const path = window.location.pathname;
 
-    const resetAll = () => {
-      searchParams.delete('secret');
-      searchParams.delete('public');
-      searchParams.delete('overridden');
-      searchParams.delete('private');
-      searchParams.delete('invalid');
-      searchParams.delete('deprecated');
-    };
+      const resetAll = () => {
+        searchParams.delete('secret');
+        searchParams.delete('public');
+        searchParams.delete('overridden');
+        searchParams.delete('private');
+        searchParams.delete('invalid');
+        searchParams.delete('deprecated');
+      };
 
-    if (reset) {
-      resetAll();
-    }
-
-    if (key === 'all' && value) {
-      resetAll();
-    } else {
-      if (!value) {
-        searchParams.delete(key);
-      } else {
-        searchParams.set(key, 'true');
+      if (reset) {
+        resetAll();
       }
-    }
 
-    router.push(`${path}?${searchParams.toString()}`);
-  };
+      if (key === 'all' && value) {
+        resetAll();
+      } else {
+        if (!value) {
+          searchParams.delete(key);
+        } else {
+          searchParams.set(key, 'true');
+        }
+      }
 
-  return useCallback(handleFilterChange, [router]);
+      router.push(`${path}?${searchParams.toString()}`);
+    },
+    [router],
+  );
 }
 
 async function copyToClipboard(text: string) {

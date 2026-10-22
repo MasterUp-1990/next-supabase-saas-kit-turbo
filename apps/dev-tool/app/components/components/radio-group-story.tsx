@@ -178,9 +178,7 @@ export default function RadioGroupStory() {
             </label>
             <Select
               value={controls.orientation}
-              onValueChange={(value: RadioGroupStoryControls['orientation']) =>
-                updateControl('orientation', value)
-              }
+              onValueChange={(value) => updateControl('orientation', value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -196,9 +194,7 @@ export default function RadioGroupStory() {
             <label className="mb-2 block text-sm font-medium">Size</label>
             <Select
               value={controls.size}
-              onValueChange={(value: RadioGroupStoryControls['size']) =>
-                updateControl('size', value)
-              }
+              onValueChange={(value) => updateControl('size', value)}
             >
               <SelectTrigger>
                 <SelectValue />

@@ -45,13 +45,13 @@ const basicFormSchema = z.object({
 const advancedFormSchema = z.object({
   firstName: z.string().min(1, 'First name is required.'),
   lastName: z.string().min(1, 'Last name is required.'),
-  email: z.string().email('Please enter a valid email address.'),
+  email: z.email('Please enter a valid email address.'),
   company: z.string().optional(),
-  role: z.enum(['developer', 'designer', 'manager', 'other'], {
-    required_error: 'Please select a role.',
+  role: z.enum(['developer', 'designer', 'manager', 'other'] as const, {
+    error: 'Please select a role.',
   }),
-  experience: z.enum(['junior', 'mid', 'senior'], {
-    required_error: 'Please select your experience level.',
+  experience: z.enum(['junior', 'mid', 'senior'] as const, {
+    error: 'Please select your experience level.',
   }),
   skills: z.array(z.string()).min(1, 'Please select at least one skill.'),
   newsletter: z.boolean().default(false),
@@ -158,7 +158,7 @@ export default function FormStory() {
   };
 
   // Basic form
-  const basicForm = useForm<z.output<typeof basicFormSchema>>({
+  const basicForm = useForm({
     resolver: zodResolver(basicFormSchema),
     defaultValues: {
       username: '',
@@ -169,7 +169,7 @@ export default function FormStory() {
   });
 
   // Advanced form
-  const advancedForm = useForm<z.output<typeof advancedFormSchema>>({
+  const advancedForm = useForm({
     resolver: zodResolver(advancedFormSchema),
     defaultValues: {
       firstName: '',
@@ -183,7 +183,7 @@ export default function FormStory() {
   });
 
   // Validation form
-  const validationForm = useForm<z.output<typeof validationFormSchema>>({
+  const validationForm = useForm({
     resolver: zodResolver(validationFormSchema),
     defaultValues: {
       password: '',
@@ -198,33 +198,10 @@ export default function FormStory() {
     setTimeout(() => setSubmissionResult(null), 5000);
   };
 
-  const getCurrentForm = () => {
-    switch (controls.formType) {
-      case 'basic':
-        return basicForm;
-      case 'advanced':
-        return advancedForm;
-      case 'validation':
-        return validationForm;
-    }
-  };
-
-  const getCurrentSchema = () => {
-    switch (controls.formType) {
-      case 'basic':
-        return basicFormSchema;
-      case 'advanced':
-        return advancedFormSchema;
-      case 'validation':
-        return validationFormSchema;
-    }
-  };
-
   const renderBasicForm = () => (
     <Form {...basicForm}>
       <form onSubmit={basicForm.handleSubmit(onSubmit)} className="space-y-6">
         <FormField
-          control={basicForm.control}
           name="username"
           render={({ field }) => (
             <FormItem>
@@ -705,15 +682,19 @@ export default function FormStory() {
       <CardContent className="space-y-4">
         <div>
           <label className="mb-2 block text-sm font-medium">Form Type</label>
+
           <Select
             value={controls.formType}
-            onValueChange={(value: FormStoryControls['formType']) =>
-              setControls((prev) => ({ ...prev, formType: value }))
-            }
+            onValueChange={(value) => {
+              if (value) {
+                setControls((prev) => ({ ...prev, formType: value }));
+              }
+            }}
           >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
+
             <SelectContent>
               <SelectItem value="basic">Basic Form</SelectItem>
               <SelectItem value="advanced">Advanced Form</SelectItem>

@@ -29,19 +29,12 @@ import { ComponentStoryLayout } from './story-layout';
 import { StorySelect } from './story-select';
 
 interface AlertControls {
-  variant: 'default' | 'destructive' | 'success' | 'warning' | 'info';
+  variant: 'default' | 'destructive';
   title: string;
   description: string;
   showIcon: boolean;
   showTitle: boolean;
-  iconType:
-    | 'alert'
-    | 'warning'
-    | 'success'
-    | 'info'
-    | 'error'
-    | 'terminal'
-    | 'lightbulb';
+  iconType: 'alert' | 'error' | 'terminal' | 'lightbulb';
   className: string;
 }
 
@@ -52,27 +45,6 @@ const iconOptions = [
     iconName: 'AlertCircle',
     label: 'Alert Circle',
     description: 'General alerts',
-  },
-  {
-    value: 'warning',
-    icon: AlertTriangle,
-    iconName: 'AlertTriangle',
-    label: 'Warning',
-    description: 'Warning messages',
-  },
-  {
-    value: 'success',
-    icon: CheckCircle,
-    iconName: 'CheckCircle',
-    label: 'Success',
-    description: 'Success messages',
-  },
-  {
-    value: 'info',
-    icon: Info,
-    iconName: 'Info',
-    label: 'Info',
-    description: 'Informational messages',
   },
   {
     value: 'error',
@@ -153,21 +125,6 @@ export function AlertStory() {
       value: 'destructive' as const,
       label: 'Destructive',
       description: 'Error/danger style',
-    },
-    {
-      value: 'success' as const,
-      label: 'Success',
-      description: 'Success/positive style',
-    },
-    {
-      value: 'warning' as const,
-      label: 'Warning',
-      description: 'Warning/caution style',
-    },
-    {
-      value: 'info' as const,
-      label: 'Info',
-      description: 'Information style',
     },
   ];
 

@@ -160,7 +160,9 @@ export function TranslationsComparison({
 
             <Select
               value={selectedNamespace}
-              onValueChange={setSelectedNamespace}
+              onValueChange={(value) =>
+                value !== null && setSelectedNamespace(value)
+              }
             >
               <SelectTrigger className="w-[180px]">
                 <SelectValue placeholder="Select namespace" />

@@ -6,14 +6,12 @@ import {
   Download,
   Edit,
   FileText,
-  Heart,
   Image,
   Info,
   MessageSquare,
   Plus,
   Settings,
   Share,
-  Star,
   User,
 } from 'lucide-react';
 

@@ -6,7 +6,10 @@ import createNextIntlMiddleware from 'next-intl/middleware';
 import { isSuperAdmin } from '@kit/admin';
 import { routing } from '@kit/i18n/routing';
 import { getSafeRedirectPath } from '@kit/shared/utils';
-import { checkRequiresMultiFactorAuthentication } from '@kit/supabase/check-requires-mfa';
+import {
+  InvalidSessionError,
+  verifySessionAssurance,
+} from '@kit/supabase/check-requires-mfa';
 import { createMiddlewareClient } from '@kit/supabase/middleware-client';
 
 import pathsConfig from '~/config/paths.config';
@@ -173,27 +176,57 @@ async function getPatterns() {
  * session. Pages keep their own checks as defence in depth.
  */
 async function requireAuthenticatedUser(req: NextRequest, res: NextResponse) {
-  const { data } = await getUser(req, res);
+  const session = await verifySessionOrSignOut(req, res);
   const { origin, pathname: next } = req.nextUrl;
 
+  if ('response' in session) {
+    return session.response;
+  }
+
   // If user is not logged in, redirect to sign in page.
-  if (!data?.claims) {
+  if (!session.claims) {
     const signIn = pathsConfig.auth.signIn;
     const redirectPath = `${signIn}?next=${next}`;
 
     return NextResponse.redirect(new URL(redirectPath, origin).href);
   }
 
-  const supabase = createMiddlewareClient(req, res);
-
-  const requiresMultiFactorAuthentication =
-    await checkRequiresMultiFactorAuthentication(supabase);
-
   // If user requires multi-factor authentication, redirect to MFA page.
-  if (requiresMultiFactorAuthentication) {
+  if (session.requiresMfa) {
     return NextResponse.redirect(
       new URL(pathsConfig.auth.verifyMfa, origin).href,
     );
+  }
+}
+
+/**
+ * Verifies the session and resolves the MFA step-up in one pass.
+ *
+ * `getClaims()` can accept a token the Auth server has since revoked, because
+ * it verifies it locally against the JWKS. The MFA check asks the Auth server,
+ * so it is where a revoked session shows up. Sign it out here, where cookies
+ * can be written, and carry the cleared cookies onto the redirect: otherwise
+ * the sign-in page would see the same cookie and bounce straight back.
+ */
+async function verifySessionOrSignOut(req: NextRequest, res: NextResponse) {
+  const supabase = createMiddlewareClient(req, res);
+
+  try {
+    return await verifySessionAssurance(supabase);
+  } catch (error) {
+    if (!(error instanceof InvalidSessionError)) {
+      throw error;
+    }
+
+    await supabase.auth.signOut({ scope: 'local' });
+
+    const response = NextResponse.redirect(
+      new URL(pathsConfig.auth.signIn, req.nextUrl.origin).href,
+    );
+
+    res.cookies.getAll().forEach((cookie) => response.cookies.set(cookie));
+
+    return { response };
   }
 }
 
@@ -211,9 +244,13 @@ async function joinTeamMiddleware(req: NextRequest, res: NextResponse) {
     return;
   }
 
-  const { data } = await getUser(req, res);
+  const session = await verifySessionOrSignOut(req, res);
 
-  if (!data?.claims) {
+  if ('response' in session) {
+    return session.response;
+  }
+
+  if (!session.claims) {
     const params = new URLSearchParams({ invite_token: token });
 
     return NextResponse.redirect(
@@ -221,12 +258,7 @@ async function joinTeamMiddleware(req: NextRequest, res: NextResponse) {
     );
   }
 
-  const supabase = createMiddlewareClient(req, res);
-
-  const requiresMultiFactorAuthentication =
-    await checkRequiresMultiFactorAuthentication(supabase);
-
-  if (requiresMultiFactorAuthentication) {
+  if (session.requiresMfa) {
     const email = req.nextUrl.searchParams.get('email') ?? '';
 
     const next = `${pathsConfig.app.joinTeam}?invite_token=${token}&email=${email}`;

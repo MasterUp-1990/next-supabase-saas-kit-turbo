@@ -1,18 +1,10 @@
 'use client';
 
-import {
-  CheckCircleIcon,
-  CircleIcon,
-  ClockIcon,
-  EyeIcon,
-  PlayIcon,
-  XCircleIcon,
-} from 'lucide-react';
+import { CircleIcon } from 'lucide-react';
 
 import { Badge } from '@kit/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@kit/ui/card';
 import { Separator } from '@kit/ui/separator';
-import { cn } from '@kit/ui/utils';
 
 interface CustomPhase {
   id: string;
@@ -47,22 +39,6 @@ interface UserStoryDisplayReadOnlyProps {
   userStories: UserStory[];
   customPhases?: CustomPhase[];
 }
-
-const priorityLabels = {
-  P0: { label: 'Critical', color: 'destructive' as const },
-  P1: { label: 'High', color: 'default' as const },
-  P2: { label: 'Medium', color: 'secondary' as const },
-  P3: { label: 'Low', color: 'outline' as const },
-};
-
-const statusIcons = {
-  not_started: CircleIcon,
-  research: EyeIcon,
-  in_progress: PlayIcon,
-  review: ClockIcon,
-  completed: CheckCircleIcon,
-  blocked: XCircleIcon,
-};
 
 const statusLabels = {
   not_started: 'Not Started',

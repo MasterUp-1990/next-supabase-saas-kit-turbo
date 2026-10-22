@@ -38,10 +38,11 @@ interface InputOTPStoryControls {
   showValue: boolean;
 }
 
-const PATTERN_REGEX = {
-  digits: /^[0-9]+$/,
-  alphanumeric: /^[a-zA-Z0-9]+$/,
-  letters: /^[a-zA-Z]+$/,
+// input-otp takes the pattern as a regex source string
+const PATTERN_SOURCES = {
+  digits: '^[0-9]+$',
+  alphanumeric: '^[a-zA-Z0-9]+$',
+  letters: '^[a-zA-Z]+$',
 };
 
 export default function InputOTPStory() {
@@ -118,7 +119,7 @@ export default function InputOTPStory() {
 
     let patternConstants = '';
     if (controls.pattern !== 'digits') {
-      patternConstants = `\n// Pattern for ${controls.pattern} input\nconst REGEXP_ONLY_${controls.pattern.toUpperCase()} = /${controls.pattern === 'alphanumeric' ? '^[a-zA-Z0-9]+$' : '^[a-zA-Z]+$'}/;\n`;
+      patternConstants = `\n// Pattern for ${controls.pattern} input\nconst REGEXP_ONLY_${controls.pattern.toUpperCase()} = "${controls.pattern === 'alphanumeric' ? '^[a-zA-Z0-9]+$' : '^[a-zA-Z]+$'}";\n`;
     }
 
     const fullComponent = `${importStatement}\n\n${stateImport}${patternConstants}\n\nfunction OTPInput() {\n  return (\n    ${otpStructure}\n  );\n}`;
@@ -168,6 +169,7 @@ export default function InputOTPStory() {
             <Select
               value={controls.maxLength.toString()}
               onValueChange={(value) =>
+                value &&
                 setControls((prev) => ({ ...prev, maxLength: parseInt(value) }))
               }
             >
@@ -187,8 +189,8 @@ export default function InputOTPStory() {
             <label className="mb-2 block text-sm font-medium">Pattern</label>
             <Select
               value={controls.pattern}
-              onValueChange={(value: InputOTPStoryControls['pattern']) =>
-                setControls((prev) => ({ ...prev, pattern: value }))
+              onValueChange={(value) =>
+                value && setControls((prev) => ({ ...prev, pattern: value }))
               }
             >
               <SelectTrigger>
@@ -207,6 +209,7 @@ export default function InputOTPStory() {
             <Select
               value={controls.groupSize.toString()}
               onValueChange={(value) =>
+                value &&
                 setControls((prev) => ({ ...prev, groupSize: parseInt(value) }))
               }
             >
@@ -314,7 +317,7 @@ export default function InputOTPStory() {
               value={otpValue}
               onChange={handleOTPChange}
               disabled={controls.disabled}
-              pattern={PATTERN_REGEX[controls.pattern]}
+              pattern={PATTERN_SOURCES[controls.pattern]}
             >
               <InputOTPGroup>{renderOTPSlots()}</InputOTPGroup>
             </InputOTP>
@@ -431,7 +434,7 @@ export default function InputOTPStory() {
                   <CardTitle>Numeric Only (Default)</CardTitle>
                 </CardHeader>
                 <CardContent className="flex justify-center">
-                  <InputOTP maxLength={6} pattern={PATTERN_REGEX.digits}>
+                  <InputOTP maxLength={6} pattern={PATTERN_SOURCES.digits}>
                     <InputOTPGroup>
                       <InputOTPSlot index={0} />
                       <InputOTPSlot index={1} />
@@ -449,7 +452,10 @@ export default function InputOTPStory() {
                   <CardTitle>Alphanumeric Code</CardTitle>
                 </CardHeader>
                 <CardContent className="flex justify-center">
-                  <InputOTP maxLength={8} pattern={PATTERN_REGEX.alphanumeric}>
+                  <InputOTP
+                    maxLength={8}
+                    pattern={PATTERN_SOURCES.alphanumeric}
+                  >
                     <InputOTPGroup>
                       <InputOTPSlot index={0} />
                       <InputOTPSlot index={1} />
@@ -472,7 +478,7 @@ export default function InputOTPStory() {
                   <CardTitle>Letters Only</CardTitle>
                 </CardHeader>
                 <CardContent className="flex justify-center">
-                  <InputOTP maxLength={5} pattern={PATTERN_REGEX.letters}>
+                  <InputOTP maxLength={5} pattern={PATTERN_SOURCES.letters}>
                     <InputOTPGroup>
                       <InputOTPSlot index={0} />
                       <InputOTPSlot index={1} />
@@ -649,16 +655,16 @@ export default function InputOTPStory() {
               <div className="bg-muted/50 rounded-lg p-4">
                 <pre className="overflow-x-auto text-sm">
                   {`// Numbers only (default)
-pattern={/^[0-9]+$/}
+pattern="^[0-9]+$"
 
 // Alphanumeric
-pattern={/^[a-zA-Z0-9]+$/}
+pattern="^[a-zA-Z0-9]+$"
 
 // Letters only
-pattern={/^[a-zA-Z]+$/}
+pattern="^[a-zA-Z]+$"
 
 // Custom: Numbers and dashes
-pattern={/^[0-9-]+$/}`}
+pattern="^[0-9-]+$"`}
                 </pre>
               </div>
             </div>

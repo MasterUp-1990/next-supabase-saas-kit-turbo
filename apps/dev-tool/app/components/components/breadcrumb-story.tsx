@@ -39,7 +39,15 @@ interface BreadcrumbStoryControls {
   maxItems: number;
 }
 
-const breadcrumbItems = [
+interface BreadcrumbDisplayItem {
+  id: string;
+  label: string;
+  href: string;
+  icon?: React.ComponentType<{ className?: string }>;
+  ellipsis?: boolean;
+}
+
+const breadcrumbItems: BreadcrumbDisplayItem[] = [
   { id: 'home', label: 'Home', href: '/', icon: HomeIcon },
   { id: 'docs', label: 'Documentation', href: '/docs' },
   {
@@ -74,12 +82,13 @@ export default function BreadcrumbStory() {
     }
   };
 
-  const getDisplayedItems = () => {
+  const getDisplayedItems = (): BreadcrumbDisplayItem[] => {
     const items = controls.showHome
       ? breadcrumbItems
       : breadcrumbItems.slice(1);
+    const [first] = items;
 
-    if (!controls.showEllipsis || items.length <= controls.maxItems) {
+    if (!first || !controls.showEllipsis || items.length <= controls.maxItems) {
       return items;
     }
 
@@ -88,7 +97,7 @@ export default function BreadcrumbStory() {
     const lastItems = items.slice(-remainingSlots);
 
     return [
-      items[0],
+      first,
       { id: 'ellipsis', label: '...', href: '#', ellipsis: true },
       ...lastItems,
     ];
@@ -103,8 +112,8 @@ export default function BreadcrumbStory() {
         <label className="mb-2 block text-sm font-medium">Separator</label>
         <Select
           value={controls.separator}
-          onValueChange={(value: BreadcrumbStoryControls['separator']) =>
-            setControls((prev) => ({ ...prev, separator: value }))
+          onValueChange={(value) =>
+            value && setControls((prev) => ({ ...prev, separator: value }))
           }
         >
           <SelectTrigger>
@@ -122,7 +131,8 @@ export default function BreadcrumbStory() {
         <label className="mb-2 block text-sm font-medium">Max Items</label>
         <Select
           value={controls.maxItems.toString()}
-          onValueChange={(value: string) =>
+          onValueChange={(value) =>
+            value &&
             setControls((prev) => ({
               ...prev,
               maxItems: parseInt(value),
@@ -551,7 +561,7 @@ function Navigation() {
 
     const importComponents = ['Breadcrumb', 'BreadcrumbList', 'BreadcrumbItem'];
     const hasLinks = items.some(
-      (item) => !item.ellipsis && item.id !== items[items.length - 1].id,
+      (item) => !item.ellipsis && item.id !== items.at(-1)?.id,
     );
     const hasEllipsis = items.some((item) => item.ellipsis);
 

@@ -160,9 +160,7 @@ export default function SonnerStory() {
             <label className="mb-2 block text-sm font-medium">Position</label>
             <Select
               value={controls.position}
-              onValueChange={(value: SonnerStoryControls['position']) =>
-                updateControl('position', value)
-              }
+              onValueChange={(value) => updateControl('position', value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -182,9 +180,7 @@ export default function SonnerStory() {
             <label className="mb-2 block text-sm font-medium">Variant</label>
             <Select
               value={controls.variant}
-              onValueChange={(value: SonnerStoryControls['variant']) =>
-                updateControl('variant', value)
-              }
+              onValueChange={(value) => updateControl('variant', value)}
             >
               <SelectTrigger>
                 <SelectValue />

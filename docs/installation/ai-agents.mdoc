@@ -252,6 +252,7 @@ Claude Code uses the `.claude/` directory:
 ├── agents/               # Custom agent definitions
 │   └── code-quality-reviewer.md
 ├── skills/               # Reusable skills
+│   ├── architect/
 │   ├── bug-hunt/
 │   ├── bug-hunt-lite/
 │   ├── playwright-e2e/
@@ -286,6 +287,7 @@ Agents can automatically invoke skills based on the context of the conversation.
 
 | Skill | Command | Purpose |
 |-------|---------|---------|
+| Architect | `/architect` | Designs a feature's data model, RLS, services and test seams before any code |
 | Postgres & Supabase Expert | `/postgres-expert` | Database schemas, RLS policies, migrations, PgTAP tests |
 | RLS Review | `/rls-review` | Adversarial tenant-isolation audit, proven with runnable PgTAP attacks |
 | Server Action Builder | `/server-action-builder` | Server Actions with validation and error handling |

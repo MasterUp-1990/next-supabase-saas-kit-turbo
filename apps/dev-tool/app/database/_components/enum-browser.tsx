@@ -4,8 +4,6 @@ import { useState } from 'react';
 
 import {
   BellIcon,
-  CheckCircleIcon,
-  CircleDollarSignIcon,
   CreditCardIcon,
   DatabaseIcon,
   ListIcon,
@@ -42,7 +40,10 @@ const categoryColors: Record<string, string> = {
   Notifications: 'bg-blue-100 text-blue-800',
 };
 
-const categoryIcons: Record<string, React.ComponentType<any>> = {
+const categoryIcons: Record<
+  string,
+  React.ComponentType<{ className?: string }>
+> = {
   'Security & Permissions': ShieldIcon,
   'Billing & Payments': CreditCardIcon,
   Notifications: BellIcon,
@@ -109,10 +110,7 @@ export function EnumBrowser({ searchTerm, enums }: EnumBrowserProps) {
   // Group enums by category
   const enumsByCategory = filteredEnums.reduce(
     (acc, enumItem) => {
-      if (!acc[enumItem.category]) {
-        acc[enumItem.category] = [];
-      }
-      acc[enumItem.category].push(enumItem);
+      (acc[enumItem.category] ??= []).push(enumItem);
       return acc;
     },
     {} as Record<string, DatabaseEnum[]>,
@@ -121,11 +119,6 @@ export function EnumBrowser({ searchTerm, enums }: EnumBrowserProps) {
   const handleEnumClick = (enumName: string) => {
     setSelectedEnum(enumName);
     setIsDialogOpen(true);
-  };
-
-  const closeDialog = () => {
-    setIsDialogOpen(false);
-    setSelectedEnum(null);
   };
 
   const getValueBadgeColor = (value: string): string => {

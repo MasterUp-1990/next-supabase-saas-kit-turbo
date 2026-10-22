@@ -6,8 +6,6 @@ import {
   Archive,
   AtSign,
   BookOpen,
-  Calculator,
-  Calendar,
   Code,
   Command as CommandIcon,
   Copy,
@@ -24,7 +22,6 @@ import {
   Search,
   Settings,
   Share,
-  Smile,
   Star,
   Trash,
   Upload,
@@ -60,21 +57,9 @@ import { cn } from '@kit/ui/utils';
 import {
   generateImportStatement,
   generatePropsString,
+  type ApiReferenceDoc,
 } from '../lib/story-utils';
 import { ComponentStoryLayout } from './story-layout';
-
-interface CommandControlsProps {
-  placeholder: string;
-  emptyMessage: string;
-  loop: boolean;
-  shouldFilter: boolean;
-  className: string;
-  onPlaceholderChange: (placeholder: string) => void;
-  onEmptyMessageChange: (message: string) => void;
-  onLoopChange: (loop: boolean) => void;
-  onShouldFilterChange: (shouldFilter: boolean) => void;
-  onClassNameChange: (className: string) => void;
-}
 
 const examples = [
   {
@@ -627,7 +612,7 @@ const examples = [
   },
 ];
 
-const apiReference = {
+const apiReference: ApiReferenceDoc = {
   title: 'Command API Reference',
   description: 'Complete API documentation for the Command component family.',
   props: [
@@ -1017,7 +1002,7 @@ export default function CommandStory() {
                     <tr key={index} className="border-border/50 border-b">
                       <td className="p-2 font-mono">{prop.name}</td>
                       <td className="p-2 font-mono">{prop.type}</td>
-                      <td className="p-2">{(prop as any).default || '-'}</td>
+                      <td className="p-2">{prop.default || '-'}</td>
                       <td className="p-2">{prop.description}</td>
                     </tr>
                   ))}

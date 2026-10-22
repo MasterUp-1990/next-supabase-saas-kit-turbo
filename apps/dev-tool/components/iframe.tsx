@@ -10,7 +10,7 @@ export const IFrame: React.FC<
     theme?: 'light' | 'dark';
     transparent?: boolean;
   }
-> = ({ children, setInnerRef, appendStyles = true, theme, ...props }) => {
+> = ({ children, setInnerRef, ...props }) => {
   const [ref, setRef] = useState<HTMLIFrameElement | null>();
   const doc = ref?.contentWindow?.document as Document;
   const mountNode = doc?.body;

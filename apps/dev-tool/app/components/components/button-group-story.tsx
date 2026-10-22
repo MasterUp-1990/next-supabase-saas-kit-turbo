@@ -18,13 +18,6 @@ import {
   CardTitle,
 } from '@kit/ui/card';
 import { Label } from '@kit/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@kit/ui/select';
 import { Separator } from '@kit/ui/separator';
 import { Switch } from '@kit/ui/switch';
 import { cn } from '@kit/ui/utils';

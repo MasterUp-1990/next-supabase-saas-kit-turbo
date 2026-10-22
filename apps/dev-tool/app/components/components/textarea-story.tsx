@@ -103,9 +103,7 @@ export default function TextareaStory() {
             <label className="mb-2 block text-sm font-medium">Resize</label>
             <Select
               value={controls.resize}
-              onValueChange={(value: TextareaStoryControls['resize']) =>
-                updateControl('resize', value)
-              }
+              onValueChange={(value) => updateControl('resize', value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -123,9 +121,7 @@ export default function TextareaStory() {
             <label className="mb-2 block text-sm font-medium">Size</label>
             <Select
               value={controls.size}
-              onValueChange={(value: TextareaStoryControls['size']) =>
-                updateControl('size', value)
-              }
+              onValueChange={(value) => updateControl('size', value)}
             >
               <SelectTrigger>
                 <SelectValue />

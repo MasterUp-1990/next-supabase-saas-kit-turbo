@@ -36,28 +36,13 @@ import {
 } from '@kit/ui/select';
 import { Separator } from '@kit/ui/separator';
 import { Switch } from '@kit/ui/switch';
-import { cn } from '@kit/ui/utils';
 
 import {
   generateImportStatement,
   generatePropsString,
+  type ApiReferenceDoc,
 } from '../lib/story-utils';
 import { ComponentStoryLayout } from './story-layout';
-
-interface CheckboxControlsProps {
-  checked: boolean;
-  indeterminate: boolean;
-  disabled: boolean;
-  required: boolean;
-  size: 'sm' | 'default' | 'lg';
-  className: string;
-  onCheckedChange: (checked: boolean) => void;
-  onIndeterminateChange: (indeterminate: boolean) => void;
-  onDisabledChange: (disabled: boolean) => void;
-  onRequiredChange: (required: boolean) => void;
-  onSizeChange: (size: 'sm' | 'default' | 'lg') => void;
-  onClassNameChange: (className: string) => void;
-}
 
 const sizeClasses = {
   sm: 'h-3 w-3',
@@ -65,47 +50,50 @@ const sizeClasses = {
   lg: 'h-5 w-5',
 };
 
-function CheckboxPlayground({
-  checked,
-  indeterminate,
-  disabled,
-  required,
-  size,
-  className,
-  onCheckedChange,
-}: CheckboxControlsProps) {
-  return (
-    <div className="flex min-h-32 items-center justify-center">
-      <div className="flex items-center space-x-2">
-        <Checkbox
-          id="playground-checkbox"
-          checked={indeterminate ? 'indeterminate' : checked}
-          onCheckedChange={(value) => {
-            if (typeof value === 'boolean') {
-              onCheckedChange(value);
-            }
-          }}
-          disabled={disabled}
-          required={required}
-          className={cn(sizeClasses[size], className)}
-        />
-        <Label
-          htmlFor="playground-checkbox"
-          className={cn(
-            'text-sm leading-none font-medium peer-disabled:cursor-not-allowed peer-disabled:opacity-70',
-            disabled && 'opacity-70',
-          )}
-        >
-          {indeterminate
-            ? 'Indeterminate checkbox'
-            : checked
-              ? 'Checked checkbox'
-              : 'Unchecked checkbox'}
-          {required && <span className="ml-1 text-red-500">*</span>}
-        </Label>
-      </div>
-    </div>
+type HierarchyCategory = 'documents' | 'media' | 'settings';
+type HierarchyValues = Record<HierarchyCategory, Record<string, boolean>>;
+type CheckState = boolean | 'indeterminate';
+
+const initialHierarchy: HierarchyValues = {
+  documents: { reports: false, presentations: true, spreadsheets: false },
+  media: { images: true, videos: true, audio: true },
+  settings: { preferences: false, security: false, notifications: false },
+};
+
+// Checked when every item is checked, unchecked when none is, otherwise indeterminate
+function checkboxStateProps(state: CheckState) {
+  return { checked: state === true, indeterminate: state === 'indeterminate' };
+}
+
+function aggregateState(states: CheckState[]): CheckState {
+  if (states.every((state) => state === true)) return true;
+  if (states.every((state) => state === false)) return false;
+
+  return 'indeterminate';
+}
+
+function fillChildren(children: Record<string, boolean>, checked: boolean) {
+  return Object.fromEntries(
+    Object.keys(children).map((key) => [key, checked] as const),
   );
+}
+
+function withParentStates(values: HierarchyValues) {
+  const section = (children: Record<string, boolean>) => ({
+    parent: aggregateState(Object.values(children)),
+    children,
+  });
+
+  const documents = section(values.documents);
+  const media = section(values.media);
+  const settings = section(values.settings);
+
+  return {
+    all: aggregateState([documents.parent, media.parent, settings.parent]),
+    documents,
+    media,
+    settings,
+  };
 }
 
 const examples = [
@@ -115,9 +103,8 @@ const examples = [
       'Standard checkbox states including checked, unchecked, indeterminate, and disabled',
     component: () => {
       const [basicChecked, setBasicChecked] = useState(false);
-      const [indeterminateChecked, setIndeterminateChecked] = useState<
-        boolean | 'indeterminate'
-      >('indeterminate');
+      const [indeterminateChecked, setIndeterminateChecked] =
+        useState<CheckState>('indeterminate');
 
       return (
         <Card className="mx-auto w-full max-w-md">
@@ -141,7 +128,7 @@ const examples = [
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="indeterminate"
-                checked={indeterminateChecked}
+                {...checkboxStateProps(indeterminateChecked)}
                 onCheckedChange={setIndeterminateChecked}
               />
               <Label htmlFor="indeterminate">
@@ -332,130 +319,41 @@ const examples = [
     description:
       'Parent-child checkbox relationships with indeterminate states',
     component: () => {
-      const [selections, setSelections] = useState({
-        all: false as boolean | 'indeterminate',
-        documents: {
-          parent: false as boolean | 'indeterminate',
-          children: {
-            reports: false,
-            presentations: true,
-            spreadsheets: false,
-          },
-        },
-        media: {
-          parent: true as boolean | 'indeterminate',
-          children: {
-            images: true,
-            videos: true,
-            audio: true,
-          },
-        },
-        settings: {
-          parent: false as boolean | 'indeterminate',
-          children: {
-            preferences: false,
-            security: false,
-            notifications: false,
-          },
-        },
-      });
-
-      const updateParentState = (
-        category:
-          | keyof typeof selections.documents
-          | keyof typeof selections.media
-          | keyof typeof selections.settings,
-      ) => {
-        const categoryData = selections[
-          category as keyof typeof selections
-        ] as {
-          parent: boolean | 'indeterminate';
-          children: Record<string, boolean>;
-        };
-        const children = Object.values(categoryData.children);
-        const checkedCount = children.filter(Boolean).length;
-
-        let parentState: boolean | 'indeterminate';
-        if (checkedCount === 0) parentState = false;
-        else if (checkedCount === children.length) parentState = true;
-        else parentState = 'indeterminate';
-
-        return parentState;
-      };
-
-      const updateAllState = () => {
-        const allCategories = [
-          selections.documents,
-          selections.media,
-          selections.settings,
-        ];
-        const allCheckedStates = allCategories.map((cat) => cat.parent);
-        const trueCount = allCheckedStates.filter(
-          (state) => state === true,
-        ).length;
-        const indeterminateCount = allCheckedStates.filter(
-          (state) => state === 'indeterminate',
-        ).length;
-
-        if (trueCount === allCategories.length) return true;
-        if (trueCount === 0 && indeterminateCount === 0) return false;
-        return 'indeterminate';
-      };
+      const [values, setValues] = useState(initialHierarchy);
+      const selections = withParentStates(values);
 
       const handleChildChange = (
-        category: 'documents' | 'media' | 'settings',
+        category: HierarchyCategory,
         child: string,
         checked: boolean,
       ) => {
-        const newSelections = { ...selections };
-        (newSelections[category].children as any)[child] = checked;
-        newSelections[category].parent = updateParentState(category);
-        newSelections.all = updateAllState();
-        setSelections(newSelections);
+        setValues((prev) => ({
+          ...prev,
+          [category]: { ...prev[category], [child]: checked },
+        }));
       };
 
       const handleParentChange = (
-        category: 'documents' | 'media' | 'settings',
-        checked: boolean | 'indeterminate',
+        category: HierarchyCategory,
+        checked: CheckState,
       ) => {
         if (checked === 'indeterminate') return;
 
-        const newSelections = { ...selections };
-        newSelections[category].parent = checked;
-
-        Object.keys(newSelections[category].children).forEach((key) => {
-          (newSelections[category].children as any)[key] = checked;
-        });
-
-        newSelections.all = updateAllState();
-        setSelections(newSelections);
+        setValues((prev) => ({
+          ...prev,
+          [category]: fillChildren(prev[category], checked),
+        }));
       };
 
-      const handleAllChange = (checked: boolean | 'indeterminate') => {
+      const handleAllChange = (checked: CheckState) => {
         if (checked === 'indeterminate') return;
 
-        const newSelections = { ...selections };
-        newSelections.all = checked;
-
-        (['documents', 'media', 'settings'] as const).forEach((category) => {
-          newSelections[category].parent = checked;
-          Object.keys(newSelections[category].children).forEach((key) => {
-            (newSelections[category].children as any)[key] = checked;
-          });
-        });
-
-        setSelections(newSelections);
+        setValues((prev) => ({
+          documents: fillChildren(prev.documents, checked),
+          media: fillChildren(prev.media, checked),
+          settings: fillChildren(prev.settings, checked),
+        }));
       };
-
-      // Update parent states based on children
-      React.useEffect(() => {
-        const newSelections = { ...selections };
-        (['documents', 'media', 'settings'] as const).forEach((category) => {
-          newSelections[category].parent = updateParentState(category);
-        });
-        newSelections.all = updateAllState();
-        setSelections(newSelections);
-      }, []);
 
       return (
         <Card className="mx-auto w-full max-w-md">
@@ -465,11 +363,12 @@ const examples = [
               Choose which files to include in your backup
             </CardDescription>
           </CardHeader>
+
           <CardContent className="space-y-4">
             <div className="flex items-center space-x-2 font-medium">
               <Checkbox
                 id="select-all"
-                checked={selections.all}
+                {...checkboxStateProps(selections.all)}
                 onCheckedChange={handleAllChange}
               />
               <Label htmlFor="select-all">Select All</Label>
@@ -481,7 +380,7 @@ const examples = [
                 <div className="mb-2 flex items-center space-x-2">
                   <Checkbox
                     id="documents"
-                    checked={selections.documents.parent}
+                    {...checkboxStateProps(selections.documents.parent)}
                     onCheckedChange={(checked) =>
                       handleParentChange('documents', checked)
                     }
@@ -544,7 +443,7 @@ const examples = [
                 <div className="mb-2 flex items-center space-x-2">
                   <Checkbox
                     id="media"
-                    checked={selections.media.parent}
+                    {...checkboxStateProps(selections.media.parent)}
                     onCheckedChange={(checked) =>
                       handleParentChange('media', checked)
                     }
@@ -599,7 +498,7 @@ const examples = [
                 <div className="mb-2 flex items-center space-x-2">
                   <Checkbox
                     id="settings"
-                    checked={selections.settings.parent}
+                    {...checkboxStateProps(selections.settings.parent)}
                     onCheckedChange={(checked) =>
                       handleParentChange('settings', checked)
                     }
@@ -898,7 +797,7 @@ const examples = [
   },
 ];
 
-const apiReference = {
+const apiReference: ApiReferenceDoc = {
   title: 'Checkbox API Reference',
   description: 'Complete API documentation for the Checkbox component.',
   props: [
@@ -1093,9 +992,6 @@ export default function CheckboxStory() {
   });
 
   const generateCode = () => {
-    const checkedValue = controls.indeterminate
-      ? '"indeterminate"'
-      : controls.checked.toString();
     const sizeClass =
       controls.size !== 'default' ? sizeClasses[controls.size] : '';
 
@@ -1188,8 +1084,8 @@ export default function CheckboxStory() {
         <Label htmlFor="size">Size</Label>
         <Select
           value={controls.size}
-          onValueChange={(value: 'sm' | 'default' | 'lg') =>
-            setControls((prev) => ({ ...prev, size: value }))
+          onValueChange={(value) =>
+            value && setControls((prev) => ({ ...prev, size: value }))
           }
         >
           <SelectTrigger>
@@ -1222,22 +1118,15 @@ export default function CheckboxStory() {
       <div className="flex items-center space-x-2">
         <Checkbox
           id="demo-checkbox"
-          checked={controls.indeterminate ? 'indeterminate' : controls.checked}
-          onCheckedChange={(checked) => {
-            if (checked === 'indeterminate') {
-              setControls((prev) => ({
-                ...prev,
-                indeterminate: true,
-                checked: false,
-              }));
-            } else {
-              setControls((prev) => ({
-                ...prev,
-                checked: !!checked,
-                indeterminate: false,
-              }));
-            }
-          }}
+          checked={controls.checked}
+          indeterminate={controls.indeterminate}
+          onCheckedChange={(checked) =>
+            setControls((prev) => ({
+              ...prev,
+              checked,
+              indeterminate: false,
+            }))
+          }
           disabled={controls.disabled}
           required={controls.required}
           className={`${sizeClasses[controls.size]} ${controls.className}`}
@@ -1300,7 +1189,7 @@ export default function CheckboxStory() {
                     <tr key={index} className="border-border/50 border-b">
                       <td className="p-2 font-mono">{prop.name}</td>
                       <td className="p-2 font-mono">{prop.type}</td>
-                      <td className="p-2">{(prop as any).default || '-'}</td>
+                      <td className="p-2">{prop.default || '-'}</td>
                       <td className="p-2">{prop.description}</td>
                     </tr>
                   ))}

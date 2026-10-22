@@ -116,6 +116,9 @@ function getImagesConfig() {
 
   return {
     remotePatterns,
+    // local Supabase Storage is served from 127.0.0.1, which Next.js 16
+    // refuses to optimize by default (SSRF guard). Dev server only.
+    dangerouslyAllowLocalIP: process.env.NODE_ENV === 'development',
   };
 }
 

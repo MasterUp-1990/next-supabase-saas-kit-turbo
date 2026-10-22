@@ -10,17 +10,23 @@ import {
   CardHeader,
   CardTitle,
 } from '@kit/ui/card';
-import { CookieBanner, useCookieConsent } from '@kit/ui/cookie-banner';
+import { useCookieConsent } from '@kit/ui/cookie-banner';
 import { Label } from '@kit/ui/label';
 import { Switch } from '@kit/ui/switch';
 
-import { generatePropsString, useStoryControls } from '../lib/story-utils';
+import { useStoryControls } from '../lib/story-utils';
 import { ComponentStoryLayout } from './story-layout';
 
 interface CookieBannerControls {
   showBanner: boolean;
   position: 'bottom-left' | 'bottom-center' | 'bottom-right';
 }
+
+const positionOptions = [
+  { value: 'bottom-left', label: 'Bottom Left' },
+  { value: 'bottom-center', label: 'Bottom Center' },
+  { value: 'bottom-right', label: 'Bottom Right' },
+] as const;
 
 export function CookieBannerStory() {
   const { controls, updateControl } = useStoryControls<CookieBannerControls>({
@@ -150,11 +156,7 @@ function App() {
       <div className="space-y-2">
         <Label>Position</Label>
         <div className="flex flex-col gap-2">
-          {[
-            { value: 'bottom-left', label: 'Bottom Left' },
-            { value: 'bottom-center', label: 'Bottom Center' },
-            { value: 'bottom-right', label: 'Bottom Right' },
-          ].map((option) => (
+          {positionOptions.map((option) => (
             <button
               key={option.value}
               className={`rounded border p-2 text-sm ${
@@ -162,7 +164,7 @@ function App() {
                   ? 'bg-primary text-primary-foreground'
                   : 'bg-background hover:bg-muted'
               }`}
-              onClick={() => updateControl('position', option.value as any)}
+              onClick={() => updateControl('position', option.value)}
             >
               {option.label}
             </button>

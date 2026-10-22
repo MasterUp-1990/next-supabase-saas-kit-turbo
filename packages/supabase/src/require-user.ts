@@ -1,8 +1,8 @@
-import type { SupabaseClient } from '@supabase/supabase-js';
+import type { JwtPayload, SupabaseClient } from '@supabase/supabase-js';
 
 import {
-  checkRequiresMultiFactorAuthentication,
-  checkTokenRequiresMultiFactorAuthentication,
+  InvalidSessionError,
+  verifySessionAssurance,
 } from './check-requires-mfa';
 import { JWTUserData } from './types';
 
@@ -50,51 +50,67 @@ export async function requireUser(
     mfaVerifyPath?: string;
   },
 ): Promise<SuccessResult | (AuthenticationErrorResult | MultiAuthErrorResult)> {
-  const { data, error } = await client.auth.getClaims(options?.token);
-
   const signInPath = options?.signInPath ?? DEFAULT_SIGN_IN_PATH;
   const mfaVerifyPath = options?.mfaVerifyPath ?? DEFAULT_MFA_VERIFY_PATH;
+  const { verifyMfa = true } = options ?? {};
 
-  if (!data?.claims || error) {
+  if (!verifyMfa) {
+    const { data, error } = await client.auth.getClaims(options?.token);
+
+    if (error || !data?.claims) {
+      return unauthenticated(getRedirectTo(signInPath, options?.next));
+    }
+
+    return { error: null, data: toUserData(data.claims) };
+  }
+
+  let session: Awaited<ReturnType<typeof verifySessionAssurance>>;
+
+  try {
+    session = await verifySessionAssurance(client, options?.token);
+  } catch (error) {
+    if (!(error instanceof InvalidSessionError)) {
+      throw error;
+    }
+
+    // No `next`: the sign-in page bounces a cookie that still verifies
+    // locally to `next`, and only the proxy-gated home route clears it.
+    return unauthenticated(signInPath);
+  }
+
+  if (!session.claims) {
+    return unauthenticated(getRedirectTo(signInPath, options?.next));
+  }
+
+  // If the user requires multi-factor authentication,
+  // redirect them to the page where they can verify their identity.
+  if (session.requiresMfa) {
     return {
       data: null,
-      error: new AuthenticationError(),
-      redirectTo: getRedirectTo(signInPath, options?.next),
+      error: new MultiFactorAuthError(),
+      redirectTo: getRedirectTo(mfaVerifyPath, options?.next),
     };
   }
 
-  const { verifyMfa = true } = options ?? {};
+  return { error: null, data: toUserData(session.claims) };
+}
 
-  if (verifyMfa) {
-    const requiresMfa = options?.token
-      ? await checkTokenRequiresMultiFactorAuthentication(client, options.token)
-      : await checkRequiresMultiFactorAuthentication(client);
-
-    // If the user requires multi-factor authentication,
-    // redirect them to the page where they can verify their identity.
-    if (requiresMfa) {
-      return {
-        data: null,
-        error: new MultiFactorAuthError(),
-        redirectTo: getRedirectTo(mfaVerifyPath, options?.next),
-      };
-    }
-  }
-
-  const role = data.claims.app_metadata?.role;
+function toUserData(claims: JwtPayload) {
+  const role = claims.app_metadata?.role;
 
   return {
-    error: null,
-    data: {
-      is_anonymous: data.claims.is_anonymous || false,
-      aal: data.claims.aal,
-      email: data.claims.email,
-      phone: data.claims.phone,
-      is_superadmin: role === 'super-admin' && data.claims.aal === 'aal2',
-      id: data.claims.sub,
-      amr: data.claims.amr,
-    },
+    is_anonymous: claims.is_anonymous || false,
+    aal: claims.aal,
+    email: claims.email,
+    phone: claims.phone,
+    is_superadmin: role === 'super-admin' && claims.aal === 'aal2',
+    id: claims.sub,
+    amr: claims.amr,
   };
+}
+
+function unauthenticated(redirectTo: string) {
+  return { data: null, error: new AuthenticationError(), redirectTo };
 }
 
 class AuthenticationError extends Error {

@@ -18,7 +18,7 @@ import {
 import { Label } from '@kit/ui/label';
 import { Switch } from '@kit/ui/switch';
 
-import { generatePropsString, useStoryControls } from '../lib/story-utils';
+import { useStoryControls } from '../lib/story-utils';
 import { ComponentStoryLayout } from './story-layout';
 
 interface BorderedNavigationMenuControls {

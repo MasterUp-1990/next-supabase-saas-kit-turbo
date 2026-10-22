@@ -48,7 +48,6 @@ import {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
-  DropdownMenuPortal,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
   DropdownMenuSeparator,
@@ -68,28 +67,13 @@ import {
   SelectValue,
 } from '@kit/ui/select';
 import { Switch } from '@kit/ui/switch';
-import { cn } from '@kit/ui/utils';
 
 import {
   generateImportStatement,
   generatePropsString,
+  type ApiReferenceDoc,
 } from '../lib/story-utils';
 import { ComponentStoryLayout } from './story-layout';
-
-interface DropdownMenuControlsProps {
-  side: 'top' | 'right' | 'bottom' | 'left';
-  align: 'start' | 'center' | 'end';
-  sideOffset: number;
-  alignOffset: number;
-  modal: boolean;
-  className: string;
-  onSideChange: (side: 'top' | 'right' | 'bottom' | 'left') => void;
-  onAlignChange: (align: 'start' | 'center' | 'end') => void;
-  onSideOffsetChange: (offset: number) => void;
-  onAlignOffsetChange: (offset: number) => void;
-  onModalChange: (modal: boolean) => void;
-  onClassNameChange: (className: string) => void;
-}
 
 const examples = [
   {
@@ -621,7 +605,7 @@ const examples = [
   },
 ];
 
-const apiReference = {
+const apiReference: ApiReferenceDoc = {
   title: 'Dropdown Menu API Reference',
   description:
     'Complete API documentation for the Dropdown Menu component family.',
@@ -877,8 +861,8 @@ export default function DropdownMenuStory() {
         <Label htmlFor="side">Side</Label>
         <Select
           value={controls.side}
-          onValueChange={(value: 'top' | 'right' | 'bottom' | 'left') =>
-            setControls((prev) => ({ ...prev, side: value }))
+          onValueChange={(value) =>
+            value && setControls((prev) => ({ ...prev, side: value }))
           }
         >
           <SelectTrigger>
@@ -897,8 +881,8 @@ export default function DropdownMenuStory() {
         <Label htmlFor="align">Align</Label>
         <Select
           value={controls.align}
-          onValueChange={(value: 'start' | 'center' | 'end') =>
-            setControls((prev) => ({ ...prev, align: value }))
+          onValueChange={(value) =>
+            value && setControls((prev) => ({ ...prev, align: value }))
           }
         >
           <SelectTrigger>
@@ -1049,7 +1033,7 @@ export default function DropdownMenuStory() {
                     <tr key={index} className="border-border/50 border-b">
                       <td className="p-2 font-mono">{prop.name}</td>
                       <td className="p-2 font-mono">{prop.type}</td>
-                      <td className="p-2">{(prop as any).default || '-'}</td>
+                      <td className="p-2">{prop.default || '-'}</td>
                       <td className="p-2">{prop.description}</td>
                     </tr>
                   ))}

@@ -61,7 +61,7 @@ export function createSetupGenerator(plop: PlopTypes.NodePlopAPI) {
           setupPreCommit({ setupHealthCheck: answers.setupHealthCheck });
 
           return 'Project setup complete. Start developing your project!';
-        } catch (_error) {
+        } catch {
           console.error('Project setup failed. Aborting package generation.');
           process.exit(1);
         }
@@ -106,7 +106,7 @@ function setupPreCommit(params: { setupHealthCheck: boolean }) {
     execSync(`chmod +x ${filePath}`, {
       stdio: 'inherit',
     });
-  } catch (_error) {
+  } catch {
     console.error('Pre-commit hook setup failed. Aborting package generation.');
     process.exit(1);
   }

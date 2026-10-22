@@ -156,7 +156,10 @@ export function SelectStory() {
     }
 
     const indent = controls.withLabel ? '  ' : '';
-    code += `${indent}<Select value={selectedValue} onValueChange={setSelectedValue}>\n`;
+    code += `${indent}<Select
+          value={selectedValue}
+          onValueChange={(value) => value !== null && setSelectedValue(value)}
+        >\n`;
     code += `${indent}  <SelectTrigger${triggerPropsString}>\n`;
     code += `${indent}    <SelectValue placeholder="${controls.placeholder}" />\n`;
     code += `${indent}  </SelectTrigger>\n`;
@@ -212,7 +215,10 @@ export function SelectStory() {
           </Label>
         )}
 
-        <Select value={selectedValue} onValueChange={setSelectedValue}>
+        <Select
+          value={selectedValue}
+          onValueChange={(value) => value !== null && setSelectedValue(value)}
+        >
           <SelectTrigger
             className={cn(
               controls.size === 'sm' && 'h-8 text-sm',
@@ -224,7 +230,9 @@ export function SelectStory() {
             <SelectValue placeholder={controls.placeholder} />
           </SelectTrigger>
 
-          <SelectContent position={controls.position}>
+          <SelectContent
+            alignItemWithTrigger={controls.position === 'item-aligned'}
+          >
             {controls.withGroups ? (
               <>
                 <SelectGroup>

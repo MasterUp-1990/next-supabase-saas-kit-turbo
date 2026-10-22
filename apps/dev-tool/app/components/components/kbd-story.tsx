@@ -113,7 +113,7 @@ export function KbdStory() {
     <div className="flex flex-col gap-6">
       <div className="flex items-center justify-center gap-4">
         {controls.showTooltip ? (
-          <TooltipProvider delayDuration={200}>
+          <TooltipProvider delay={200}>
             <Tooltip>
               <TooltipTrigger
                 render={<Button variant="outline" className="gap-2" />}

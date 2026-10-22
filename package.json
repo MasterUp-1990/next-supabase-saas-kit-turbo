@@ -1,6 +1,6 @@
 {
   "name": "next-supabase-saas-kit-turbo",
-  "version": "4.2.1",
+  "version": "4.2.2",
   "private": true,
   "author": {
     "name": "MakerKit",
@@ -50,5 +50,5 @@
   "engines": {
     "node": ">=20.10.0"
   },
-  "packageManager": "pnpm@12.11.2"
+  "packageManager": "pnpm@12.14.0"
 }

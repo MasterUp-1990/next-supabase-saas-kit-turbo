@@ -14,30 +14,25 @@ export async function generateMetadata({
   params,
 }: PRDPageProps): Promise<Metadata> {
   const { filename } = await params;
+  const prd = await loadPRDPageData(filename);
 
-  try {
-    const prd = await loadPRDPageData(filename);
-
-    return {
-      title: `${prd.introduction.title} - PRD`,
-      description: prd.introduction.overview,
-    };
-  } catch {
-    return {
-      title: 'PRD Not Found',
-    };
+  if (!prd) {
+    notFound();
   }
+
+  return {
+    title: `${prd.introduction.title} - PRD`,
+    description: prd.introduction.overview,
+  };
 }
 
 export default async function PRDPage({ params }: PRDPageProps) {
   const { filename } = await params;
+  const prd = await loadPRDPageData(filename);
 
-  try {
-    const prd = await loadPRDPageData(filename);
-
-    return <PRDDetailView filename={filename} prd={prd} />;
-  } catch (error) {
-    console.error('Failed to load PRD:', error);
+  if (!prd) {
     notFound();
   }
+
+  return <PRDDetailView filename={filename} prd={prd} />;
 }

@@ -41,6 +41,7 @@ import { Textarea } from '@kit/ui/textarea';
 import {
   generateImportStatement,
   generatePropsString,
+  type ApiReferenceDoc,
 } from '../lib/story-utils';
 import { ComponentStoryLayout } from './story-layout';
 
@@ -860,7 +861,7 @@ function App() {
   },
 ];
 
-const apiReference = {
+const apiReference: ApiReferenceDoc = {
   title: 'Tabs API Reference',
   description: 'Complete API documentation for the Tabs component family.',
   props: [
@@ -1073,10 +1074,6 @@ export default function TabsStory() {
       className: tabsListClasses || undefined,
     });
 
-    const tabsTriggerPropsString = generatePropsString({
-      className: triggerClassName || undefined,
-    });
-
     const importStatement = generateImportStatement(
       ['Tabs', 'TabsContent', 'TabsList', 'TabsTrigger'],
       '@kit/ui/tabs',
@@ -1147,6 +1144,7 @@ export default function TabsStory() {
             <Select
               value={controls.defaultValue}
               onValueChange={(value) =>
+                value &&
                 setControls((prev) => ({ ...prev, defaultValue: value }))
               }
             >
@@ -1165,7 +1163,8 @@ export default function TabsStory() {
             <Label htmlFor="orientation">Orientation</Label>
             <Select
               value={controls.orientation}
-              onValueChange={(value: 'horizontal' | 'vertical') =>
+              onValueChange={(value) =>
+                value &&
                 setControls((prev) => ({ ...prev, orientation: value }))
               }
             >
@@ -1183,8 +1182,8 @@ export default function TabsStory() {
             <Label htmlFor="variant">Variant</Label>
             <Select
               value={controls.variant}
-              onValueChange={(value: 'default' | 'pills' | 'underline') =>
-                setControls((prev) => ({ ...prev, variant: value }))
+              onValueChange={(value) =>
+                value && setControls((prev) => ({ ...prev, variant: value }))
               }
             >
               <SelectTrigger>
@@ -1202,8 +1201,8 @@ export default function TabsStory() {
             <Label htmlFor="size">Size</Label>
             <Select
               value={controls.size}
-              onValueChange={(value: 'sm' | 'default' | 'lg') =>
-                setControls((prev) => ({ ...prev, size: value }))
+              onValueChange={(value) =>
+                value && setControls((prev) => ({ ...prev, size: value }))
               }
             >
               <SelectTrigger>
@@ -1271,7 +1270,7 @@ export default function TabsStory() {
                     <tr key={index} className="border-border/50 border-b">
                       <td className="p-2 font-mono">{prop.name}</td>
                       <td className="p-2 font-mono">{prop.type}</td>
-                      <td className="p-2">{(prop as any).default || '-'}</td>
+                      <td className="p-2">{prop.default || '-'}</td>
                       <td className="p-2">{prop.description}</td>
                     </tr>
                   ))}

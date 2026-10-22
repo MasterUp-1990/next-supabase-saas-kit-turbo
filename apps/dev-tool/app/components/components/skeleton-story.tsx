@@ -79,9 +79,7 @@ export default function SkeletonStory() {
             <label className="mb-2 block text-sm font-medium">Variant</label>
             <Select
               value={controls.variant}
-              onValueChange={(value: SkeletonStoryControls['variant']) =>
-                updateControl('variant', value)
-              }
+              onValueChange={(value) => updateControl('variant', value)}
             >
               <SelectTrigger>
                 <SelectValue />
@@ -98,9 +96,7 @@ export default function SkeletonStory() {
             <label className="mb-2 block text-sm font-medium">Size</label>
             <Select
               value={controls.size}
-              onValueChange={(value: SkeletonStoryControls['size']) =>
-                updateControl('size', value)
-              }
+              onValueChange={(value) => updateControl('size', value)}
             >
               <SelectTrigger>
                 <SelectValue />

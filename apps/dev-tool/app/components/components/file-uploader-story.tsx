@@ -23,7 +23,7 @@ import { SimpleStorySelect } from './story-select';
 const createMockSupabaseClient = () => ({
   storage: {
     from: (bucket: string) => ({
-      upload: async (path: string, file: File, options: any) => {
+      upload: async (path: string) => {
         // Simulate upload delay
         await new Promise((resolve) =>
           setTimeout(resolve, 1000 + Math.random() * 2000),
@@ -78,7 +78,7 @@ const mimeTypeOptions = [
     description: 'pdf, doc, txt files',
   },
   { value: 'all', label: 'All types', description: 'No restrictions' },
-];
+] as const;
 
 const getMimeTypes = (type: string): string[] => {
   switch (type) {
@@ -219,9 +219,7 @@ ${formattedProps}
         <Label htmlFor="allowedMimeTypes">Allowed File Types</Label>
         <SimpleStorySelect
           value={controls.allowedMimeTypes}
-          onValueChange={(value) =>
-            updateControl('allowedMimeTypes', value as any)
-          }
+          onValueChange={(value) => updateControl('allowedMimeTypes', value)}
           options={mimeTypeOptions}
         />
       </div>
@@ -257,7 +255,7 @@ ${formattedProps}
             allowedMimeTypes={['image/*']}
             maxFileSize={5 * 1024 * 1024} // 5MB
             client={mockClient as any}
-            onUploadSuccess={(files) => toast.success('Image uploaded!')}
+            onUploadSuccess={() => toast.success('Image uploaded!')}
           />
         </CardContent>
       </Card>

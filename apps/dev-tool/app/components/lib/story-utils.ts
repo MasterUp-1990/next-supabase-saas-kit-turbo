@@ -7,12 +7,13 @@ import { toast } from '@kit/ui/sonner';
 /**
  * Generic hook for managing component story controls
  */
-export function useStoryControls<T extends Record<string, any>>(
-  initialState: T,
-) {
+export function useStoryControls<T extends object>(initialState: T) {
   const [controls, setControls] = useState<T>(initialState);
 
-  const updateControl = <K extends keyof T>(key: K, value: T[K]) => {
+  // Base UI selects report a cleared value as null; keep the current control
+  const updateControl = <K extends keyof T>(key: K, value: T[K] | null) => {
+    if (value === null) return;
+
     setControls((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -55,8 +56,8 @@ export function useCopyCode() {
  * Utility to generate props string from control values
  */
 export function generatePropsString(
-  controls: Record<string, any>,
-  defaults: Record<string, any> = {},
+  controls: Record<string, unknown>,
+  defaults: Record<string, unknown> = {},
   excludeKeys: string[] = [],
 ): string {
   const props: string[] = [];
@@ -116,6 +117,25 @@ export interface SelectOption<T = string> {
   color?: string;
 }
 
+export interface ApiPropDoc {
+  name: string;
+  type: string;
+  default?: string;
+  description: string;
+}
+
+export interface ApiExampleDoc {
+  title: string;
+  code: string;
+}
+
+export interface ApiReferenceDoc {
+  title: string;
+  description: string;
+  props: ApiPropDoc[];
+  examples: ApiExampleDoc[];
+}
+
 /**
  * Utility to format component imports for code generation
  */
@@ -138,11 +158,7 @@ export function generateImportStatement(
 /**
  * Utility to create formatted code blocks
  */
-export function formatCodeBlock(
-  code: string,
-  imports: string[] = [],
-  language: 'tsx' | 'jsx' | 'javascript' | 'typescript' = 'tsx',
-): string {
+export function formatCodeBlock(code: string, imports: string[] = []): string {
   let formattedCode = '';
 
   if (imports.length > 0) {

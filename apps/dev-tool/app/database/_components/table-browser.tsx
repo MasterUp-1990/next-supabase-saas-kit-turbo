@@ -16,11 +16,6 @@ import {
 import { Separator } from '@kit/ui/separator';
 
 import { getTableDetailsAction } from '../_lib/server/table-server-actions';
-
-// Use the service's own types so the browser cannot drift from what
-// getTableDetailsAction actually returns.
-type TableColumn = TableInfo['columns'][number];
-
 interface TableSummary {
   name: string;
   schema: string;
@@ -71,10 +66,7 @@ export function TableBrowser({ searchTerm, tables }: TableBrowserProps) {
   // Group tables by topic
   const tablesByTopic = filteredTables.reduce(
     (acc, table) => {
-      if (!acc[table.topic]) {
-        acc[table.topic] = [];
-      }
-      acc[table.topic].push(table);
+      (acc[table.topic] ??= []).push(table);
       return acc;
     },
     {} as Record<string, TableSummary[]>,
@@ -101,12 +93,6 @@ export function TableBrowser({ searchTerm, tables }: TableBrowserProps) {
     } finally {
       setLoading(false);
     }
-  };
-
-  const closeDialog = () => {
-    setIsDialogOpen(false);
-    setSelectedTable(null);
-    setTableDetails(null);
   };
 
   const getColumnTypeDisplay = (type: string) => {

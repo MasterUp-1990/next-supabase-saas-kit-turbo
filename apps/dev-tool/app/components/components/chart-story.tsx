@@ -300,8 +300,8 @@ export default function ChartStory() {
             <label className="mb-2 block text-sm font-medium">Chart Type</label>
             <Select
               value={controls.chartType}
-              onValueChange={(value: ChartStoryControls['chartType']) =>
-                setControls((prev) => ({ ...prev, chartType: value }))
+              onValueChange={(value) =>
+                value && setControls((prev) => ({ ...prev, chartType: value }))
               }
             >
               <SelectTrigger>

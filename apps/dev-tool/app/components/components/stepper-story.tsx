@@ -11,7 +11,6 @@ import {
   CardTitle,
 } from '@kit/ui/card';
 import { Label } from '@kit/ui/label';
-import { Separator } from '@kit/ui/separator';
 import { Stepper } from '@kit/ui/stepper';
 
 import { generatePropsString, useStoryControls } from '../lib/story-utils';
@@ -28,7 +27,7 @@ const variantOptions = [
   { value: 'default', label: 'Default', description: 'Progress bar style' },
   { value: 'numbers', label: 'Numbers', description: 'Numbered circles' },
   { value: 'dots', label: 'Dots', description: 'Simple dot indicators' },
-];
+] as const;
 
 const stepCountOptions = [
   { value: '3', label: '3 steps', description: 'Simple flow' },
@@ -101,7 +100,7 @@ export function StepperStory() {
         <Label htmlFor="variant">Variant</Label>
         <SimpleStorySelect
           value={controls.variant}
-          onValueChange={(value) => updateControl('variant', value as any)}
+          onValueChange={(value) => updateControl('variant', value)}
           options={variantOptions}
         />
       </div>

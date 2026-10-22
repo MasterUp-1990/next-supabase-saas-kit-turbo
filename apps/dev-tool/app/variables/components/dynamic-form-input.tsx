@@ -131,7 +131,7 @@ export function DynamicFormInput({
       return (
         <Select
           value={value === 'none' ? '' : value}
-          onValueChange={handleSelectChange}
+          onValueChange={(value) => value !== null && handleSelectChange(value)}
         >
           <SelectTrigger className={className}>
             <SelectValue placeholder={placeholder} />

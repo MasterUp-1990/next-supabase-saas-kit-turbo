@@ -22,6 +22,7 @@ import { Switch } from '@kit/ui/switch';
 import {
   generateImportStatement,
   generatePropsString,
+  type ApiReferenceDoc,
 } from '../lib/story-utils';
 import { ComponentStoryLayout } from './story-layout';
 
@@ -46,56 +47,10 @@ interface ProgressControlsProps {
   onIndeterminateChange: (indeterminate: boolean) => void;
 }
 
-const progressControls = [
-  {
-    name: 'value',
-    type: 'range',
-    min: 0,
-    max: 100,
-    step: 1,
-    description: 'Current progress value',
-  },
-  {
-    name: 'max',
-    type: 'range',
-    min: 50,
-    max: 200,
-    step: 10,
-    description: 'Maximum progress value',
-  },
-  {
-    name: 'size',
-    type: 'select',
-    options: ['sm', 'default', 'lg'],
-    description: 'Progress bar size',
-  },
-  {
-    name: 'variant',
-    type: 'select',
-    options: ['default', 'success', 'warning', 'error'],
-    description: 'Progress bar color variant',
-  },
-  {
-    name: 'animated',
-    type: 'boolean',
-    description: 'Enable animated progress bar',
-  },
-  {
-    name: 'showLabel',
-    type: 'boolean',
-    description: 'Show percentage label',
-  },
-  {
-    name: 'indeterminate',
-    type: 'boolean',
-    description: 'Indeterminate/loading state',
-  },
-  {
-    name: 'className',
-    type: 'text',
-    description: 'Additional CSS classes',
-  },
-];
+// Base UI sliders report a single value as a number or a one-item array
+function toNumber(value: number | readonly number[]) {
+  return typeof value === 'number' ? value : (value[0] ?? 0);
+}
 
 const sizeClasses = {
   sm: 'h-1',
@@ -148,7 +103,7 @@ function ProgressPlayground({
       )}
 
       <Progress
-        value={displayValue}
+        value={displayValue ?? null}
         max={max}
         className={` ${sizeClasses[size]} ${variantClasses[variant]} ${indeterminate ? 'animate-pulse [&>*]:w-1/3 [&>*]:translate-x-0 [&>*]:animate-pulse' : ''} ${animated ? 'transition-all duration-500 ease-out' : ''} ${className} `}
       />
@@ -391,7 +346,7 @@ const examples = [
               </div>
 
               <Progress
-                value={states.processing ? undefined : 0}
+                value={states.processing ? null : 0}
                 className={`h-2 ${states.processing ? 'animate-pulse [&>*]:w-1/3 [&>*]:translate-x-0 [&>*]:animate-pulse' : ''}`}
               />
             </div>
@@ -413,7 +368,7 @@ const examples = [
               </div>
 
               <Progress
-                value={states.analyzing ? undefined : 0}
+                value={states.analyzing ? null : 0}
                 className={`h-2 [&>*]:bg-orange-500 ${states.analyzing ? 'animate-pulse [&>*]:w-1/3 [&>*]:translate-x-0 [&>*]:animate-pulse' : ''}`}
               />
             </div>
@@ -435,7 +390,7 @@ const examples = [
               </div>
 
               <Progress
-                value={states.syncing ? undefined : 0}
+                value={states.syncing ? null : 0}
                 className={`h-2 [&>*]:bg-purple-500 ${states.syncing ? 'animate-pulse [&>*]:w-1/3 [&>*]:translate-x-0 [&>*]:animate-pulse' : ''}`}
               />
             </div>
@@ -446,7 +401,7 @@ const examples = [
   },
 ];
 
-const apiReference = {
+const apiReference: ApiReferenceDoc = {
   title: 'Progress API Reference',
   description: 'Complete API documentation for the Progress component.',
   props: [
@@ -641,12 +596,12 @@ ${fullExample}`;
         <Label htmlFor="progress-value">Progress Value</Label>
         <Slider
           id="progress-value"
-          min={[0]}
-          max={[controls.max]}
-          step={[1]}
+          min={0}
+          max={controls.max}
+          step={1}
           value={[controls.value]}
-          onValueChange={([value]) =>
-            setControls((prev) => ({ ...prev, value }))
+          onValueChange={(value) =>
+            setControls((prev) => ({ ...prev, value: toNumber(value) }))
           }
           disabled={controls.indeterminate}
         />
@@ -661,11 +616,13 @@ ${fullExample}`;
         <Label htmlFor="max-value">Maximum Value</Label>
         <Slider
           id="max-value"
-          min={[50]}
-          max={[200]}
-          step={[10]}
+          min={50}
+          max={200}
+          step={10}
           value={[controls.max]}
-          onValueChange={([max]) => setControls((prev) => ({ ...prev, max }))}
+          onValueChange={(value) =>
+            setControls((prev) => ({ ...prev, max: toNumber(value) }))
+          }
         />
         <div className="text-muted-foreground mt-1 flex justify-between text-xs">
           <span>50</span>
@@ -678,8 +635,8 @@ ${fullExample}`;
         <Label htmlFor="size">Size</Label>
         <Select
           value={controls.size}
-          onValueChange={(value: 'sm' | 'default' | 'lg') =>
-            setControls((prev) => ({ ...prev, size: value }))
+          onValueChange={(value) =>
+            value && setControls((prev) => ({ ...prev, size: value }))
           }
         >
           <SelectTrigger>
@@ -697,8 +654,8 @@ ${fullExample}`;
         <Label htmlFor="variant">Variant</Label>
         <Select
           value={controls.variant}
-          onValueChange={(value: 'default' | 'success' | 'warning' | 'error') =>
-            setControls((prev) => ({ ...prev, variant: value }))
+          onValueChange={(value) =>
+            value && setControls((prev) => ({ ...prev, variant: value }))
           }
         >
           <SelectTrigger>
@@ -842,7 +799,7 @@ ${fullExample}`;
                     <tr key={index} className="border-border/50 border-b">
                       <td className="p-2 font-mono">{prop.name}</td>
                       <td className="p-2 font-mono">{prop.type}</td>
-                      <td className="p-2">{(prop as any).default || '-'}</td>
+                      <td className="p-2">{prop.default || '-'}</td>
                       <td className="p-2">{prop.description}</td>
                     </tr>
                   ))}

@@ -7,7 +7,10 @@ import { getTranslations } from 'next-intl/server';
 
 import { MultiFactorChallengeContainer } from '@kit/auth/mfa';
 import { getSafeRedirectPath } from '@kit/shared/utils';
-import { checkRequiresMultiFactorAuthentication } from '@kit/supabase/check-requires-mfa';
+import {
+  InvalidSessionError,
+  verifySessionAssurance,
+} from '@kit/supabase/check-requires-mfa';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 import { Skeleton } from '@kit/ui/skeleton';
 
@@ -56,15 +59,19 @@ async function MultiFactorChallenge(props: Props) {
 
   const client = getSupabaseServerClient();
 
-  const { data } = await client.auth.getClaims();
+  // A session the Auth server rejected goes to sign-in like any other
+  // signed-out visitor; the proxy clears its cookie on the way.
+  const session = await verifySessionAssurance(client).catch(
+    (error: unknown) => {
+      if (error instanceof InvalidSessionError) {
+        return { claims: null };
+      }
 
-  if (!data?.claims) {
-    redirect(pathsConfig.auth.signIn);
-  }
+      throw error;
+    },
+  );
 
-  const needsMfa = await checkRequiresMultiFactorAuthentication(client);
-
-  if (!needsMfa) {
+  if (!session.claims || !session.requiresMfa) {
     redirect(pathsConfig.auth.signIn);
   }
 
@@ -73,7 +80,7 @@ async function MultiFactorChallenge(props: Props) {
 
   return (
     <MultiFactorChallengeContainer
-      userId={data.claims.sub}
+      userId={session.claims.sub}
       paths={{
         redirectPath,
       }}

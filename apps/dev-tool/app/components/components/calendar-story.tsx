@@ -33,6 +33,11 @@ interface CalendarStoryControls {
   buttonVariant: 'ghost' | 'outline' | 'secondary';
 }
 
+type DemoRange = { from: Date | undefined; to?: Date | undefined };
+
+const demoDate = new Date();
+const demoWeekLater = new Date(demoDate.getTime() + 7 * 24 * 60 * 60 * 1000);
+
 export default function CalendarStory() {
   const [controls, setControls] = useState<CalendarStoryControls>({
     mode: 'single',
@@ -45,36 +50,12 @@ export default function CalendarStory() {
   });
 
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    new Date(),
+    () => new Date(),
   );
   const [selectedDates, setSelectedDates] = useState<Date[]>([]);
-  const [selectedRange, setSelectedRange] = useState<{
-    from?: Date;
-    to?: Date;
-  }>({});
-
-  const handleDateChange = (date: any) => {
-    if (controls.mode === 'single') {
-      setSelectedDate(date);
-    } else if (controls.mode === 'multiple') {
-      setSelectedDates(date || []);
-    } else if (controls.mode === 'range') {
-      setSelectedRange(date || {});
-    }
-  };
-
-  const getSelectedValue = () => {
-    switch (controls.mode) {
-      case 'single':
-        return selectedDate;
-      case 'multiple':
-        return selectedDates;
-      case 'range':
-        return selectedRange;
-      default:
-        return undefined;
-    }
-  };
+  const [selectedRange, setSelectedRange] = useState<DemoRange>({
+    from: undefined,
+  });
 
   // Controls section
   const controlsContent = (
@@ -83,8 +64,8 @@ export default function CalendarStory() {
         <label className="mb-2 block text-sm font-medium">Mode</label>
         <Select
           value={controls.mode}
-          onValueChange={(value: CalendarStoryControls['mode']) =>
-            setControls((prev) => ({ ...prev, mode: value }))
+          onValueChange={(value) =>
+            value && setControls((prev) => ({ ...prev, mode: value }))
           }
         >
           <SelectTrigger>
@@ -102,8 +83,8 @@ export default function CalendarStory() {
         <label className="mb-2 block text-sm font-medium">Caption Layout</label>
         <Select
           value={controls.captionLayout}
-          onValueChange={(value: CalendarStoryControls['captionLayout']) =>
-            setControls((prev) => ({ ...prev, captionLayout: value }))
+          onValueChange={(value) =>
+            value && setControls((prev) => ({ ...prev, captionLayout: value }))
           }
         >
           <SelectTrigger>
@@ -122,8 +103,8 @@ export default function CalendarStory() {
         <label className="mb-2 block text-sm font-medium">Button Variant</label>
         <Select
           value={controls.buttonVariant}
-          onValueChange={(value: CalendarStoryControls['buttonVariant']) =>
-            setControls((prev) => ({ ...prev, buttonVariant: value }))
+          onValueChange={(value) =>
+            value && setControls((prev) => ({ ...prev, buttonVariant: value }))
           }
         >
           <SelectTrigger>
@@ -143,7 +124,8 @@ export default function CalendarStory() {
         </label>
         <Select
           value={controls.numberOfMonths.toString()}
-          onValueChange={(value: string) =>
+          onValueChange={(value) =>
+            value &&
             setControls((prev) => ({
               ...prev,
               numberOfMonths: parseInt(value),
@@ -204,21 +186,43 @@ export default function CalendarStory() {
     </div>
   );
 
+  const sharedCalendarProps = {
+    captionLayout: controls.captionLayout,
+    showOutsideDays: controls.showOutsideDays,
+    showWeekNumber: controls.showWeekNumber,
+    numberOfMonths: controls.numberOfMonths,
+    disabled: controls.disabled,
+    buttonVariant: controls.buttonVariant,
+    className: 'rounded-md border',
+  };
+
   // Preview section
   const previewContent = (
     <div className="flex justify-center p-6">
-      <Calendar
-        mode={controls.mode}
-        selected={getSelectedValue()}
-        onSelect={handleDateChange}
-        captionLayout={controls.captionLayout}
-        showOutsideDays={controls.showOutsideDays}
-        showWeekNumber={controls.showWeekNumber}
-        numberOfMonths={controls.numberOfMonths}
-        disabled={controls.disabled}
-        buttonVariant={controls.buttonVariant}
-        className="rounded-md border"
-      />
+      {controls.mode === 'single' && (
+        <Calendar
+          {...sharedCalendarProps}
+          mode="single"
+          selected={selectedDate}
+          onSelect={setSelectedDate}
+        />
+      )}
+      {controls.mode === 'multiple' && (
+        <Calendar
+          {...sharedCalendarProps}
+          mode="multiple"
+          selected={selectedDates}
+          onSelect={(dates) => setSelectedDates(dates ?? [])}
+        />
+      )}
+      {controls.mode === 'range' && (
+        <Calendar
+          {...sharedCalendarProps}
+          mode="range"
+          selected={selectedRange}
+          onSelect={(range) => setSelectedRange(range ?? { from: undefined })}
+        />
+      )}
     </div>
   );
 
@@ -231,7 +235,7 @@ export default function CalendarStory() {
           <CardContent className="flex justify-center pt-6">
             <Calendar
               mode="single"
-              selected={new Date()}
+              selected={demoDate}
               onSelect={() => {}}
               className="rounded-md border"
             />
@@ -245,10 +249,7 @@ export default function CalendarStory() {
           <CardContent className="flex justify-center pt-6">
             <Calendar
               mode="range"
-              selected={{
-                from: new Date(),
-                to: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
-              }}
+              selected={{ from: demoDate, to: demoWeekLater }}
               onSelect={() => {}}
               className="rounded-md border"
             />
@@ -262,7 +263,7 @@ export default function CalendarStory() {
           <CardContent className="flex justify-center pt-6">
             <Calendar
               mode="single"
-              selected={new Date()}
+              selected={demoDate}
               onSelect={() => {}}
               numberOfMonths={2}
               className="rounded-md border"
@@ -285,9 +286,8 @@ export default function CalendarStory() {
               <PopoverContent className="w-auto p-0" align="start">
                 <Calendar
                   mode="single"
-                  selected={new Date()}
+                  selected={demoDate}
                   onSelect={() => {}}
-                  initialFocus
                 />
               </PopoverContent>
             </Popover>
@@ -301,7 +301,7 @@ export default function CalendarStory() {
           <CardContent className="flex justify-center pt-6">
             <Calendar
               mode="single"
-              selected={new Date()}
+              selected={demoDate}
               onSelect={() => {}}
               showWeekNumber
               className="rounded-md border"

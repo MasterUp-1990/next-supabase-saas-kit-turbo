@@ -25,7 +25,6 @@ export function CodeCard({
   title = 'Generated Code',
   description = 'Copy and paste this code into your project',
   code,
-  language = 'tsx',
   className,
 }: CodeCardProps) {
   const { copiedCode, copyCode } = useCopyCode();

@@ -29,7 +29,7 @@ export function EnvModeSelector({ mode }: { mode: EnvMode }) {
       <Select
         name={'mode'}
         defaultValue={mode}
-        onValueChange={handleModeChange}
+        onValueChange={(value) => value && handleModeChange(value)}
       >
         <SelectTrigger>
           <SelectValue placeholder="Select Mode" />
