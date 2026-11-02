@@ -11,6 +11,9 @@
 | `packages/supabase` | Supabase clients              | See `packages/supabase/AGENTS.md` |
 | `packages/next`     | Next.js utilities             | See `packages/next/AGENTS.md`     |
 | `packages/features` | Feature packages              | See `packages/features/AGENTS.md` |
+| `packages/shared`   | Registry, logger, redirects   | See `packages/shared/AGENTS.md`   |
+| `packages/policies` | Business-rule policies        | See `packages/policies/AGENTS.md` |
+| `packages/i18n`     | Locales, message fallback     | See `packages/i18n/AGENTS.md`     |
 
 <!-- BEGIN:nextjs-agent-rules -->
 
@@ -42,12 +45,12 @@ Before any Next.js work, find and read the relevant doc in `apps/web/node_module
 | Server Client  | `getSupabaseServerClient` from `@kit/supabase/server-client` | `packages/supabase/AGENTS.md` |
 | UI Components  | `@kit/ui/{component}`                                        | `packages/ui/AGENTS.md`       |
 | Translations   | `Trans` from `@kit/ui/trans`                                 | `packages/ui/AGENTS.md`       |
+| Safe redirects | `getSafeRedirectPath` from `@kit/shared/safe-redirect`       | `packages/shared/AGENTS.md`   |
 
 ## Authorization
 
 - **RLS enforces access control** - no manual auth checks needed with standard client
 - **Admin client** (`getSupabaseServerAdminClient`) bypasses RLS - use sparingly with manual validation
-
 
 ## TypeScript
 
@@ -56,6 +59,10 @@ Before any Next.js work, find and read the relevant doc in `apps/web/node_module
 - Use service pattern for server-side APIs
 - Add `import 'server-only';` to server-only code (except if using 'use server') (not needed in components)
 - Never mix client/server imports - use separate package.json exports
+- Use small, well-named, implicit, testable pure functions
+- Break down complex statements into well-named, clear and explicit variable declarations or functions
+- Avoid functions with over 2 parameters; use an object as a parameter for better code
+- Do separate complex statements using line breaks
 
 ## React
 
@@ -63,6 +70,7 @@ Before any Next.js work, find and read the relevant doc in `apps/web/node_module
 - Always use 'use client' directive for client components
 - Add `data-test` for E2E tests where appropriate (Playwright's `testIdAttribute`)
 - Avoid `useEffect` - justify if necessary
+- Browser-only UI (reads `window`, `localStorage`, media queries) renders after `use(browser())` from `react-dom`, inside a `<Suspense>` boundary; never branch on `typeof window` / `isBrowser()` in render, it causes hydration mismatches. Never suspend around `children` of a provider: put the browser-only part in a sibling leaf.
 - Prefer single state object over multiple `useState`
 - Prefer RSC for data fetching
 - Display `Spinner` (from `@kit/ui/spinner`) where appropriate

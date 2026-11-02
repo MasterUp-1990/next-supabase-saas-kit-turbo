@@ -14,11 +14,13 @@
   },
   "scripts": {
     "clean": "rm -rf .turbo node_modules",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run"
   },
   "devDependencies": {
     "@kit/shared": "workspace:*",
     "@kit/tsconfig": "workspace:*",
+    "vitest": "catalog:",
     "zod": "catalog:"
   }
 }

@@ -88,17 +88,21 @@ Keep the same key structure as the English files. Only translate the values.
 
 Add your new language to the locales configuration:
 
-```tsx title="packages/i18n/src/locales.tsx" {6}
-/**
- * The list of supported locales.
- * Add more locales here as needed.
- */
-export const locales: string[] = ['en', 'es', 'de', 'fr'];
+```tsx title="packages/i18n/src/locales.tsx"
+export const locales: string[] = [defaultLocale, 'es', 'de', 'fr'];
 ```
 
-The order matters for fallback behavior:
-1. First locale is the default fallback
-2. When a translation is missing, the system falls back through this list
+The default locale is set in code, in `packages/i18n/src/default-locale.ts`:
+
+```ts title="packages/i18n/src/default-locale.ts"
+const DEFAULT_LOCALE = 'en';
+```
+
+`NEXT_PUBLIC_DEFAULT_LOCALE` still overrides it, but it is deprecated: set `DEFAULT_LOCALE` instead and remove the variable.
+
+Fallback behavior (the order of this list doesn't matter):
+1. A key missing in a locale falls back, per key, to the default locale (`DEFAULT_LOCALE` in `packages/i18n/src/default-locale.ts`, `en` by default)
+2. A key missing in the default locale too renders as its full `namespace.key` path, so you can search for it
 
 ### Verify the Registration
 
@@ -250,6 +254,8 @@ mkdir packages/email-templates/src/locales/es
 ```bash
 cp packages/email-templates/src/locales/en/*.json packages/email-templates/src/locales/es/
 ```
+
+A key missing in a language's email file falls back to the default locale, then English; a key missing everywhere renders as `namespace.key`, like the app's translations.
 
 #### Translate the content:
 

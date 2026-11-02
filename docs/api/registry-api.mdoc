@@ -138,6 +138,10 @@ const provider = process.env.EMAIL_PROVIDER as EmailProvider;
 const mailer = await emailRegistry.get(provider);
 ```
 
+### Fresh instances
+
+`get()` runs the factory on every call and returns a new instance, so nothing built for one request (cookies, session, a request-bound Supabase client) is shared with another user. Keep factories cheap: import lazily and avoid expensive work per call. A factory that throws, rejects or returns nothing makes `get()` reject.
+
 ### Creating a helper function
 
 Wrap the registry in a helper for cleaner usage:
@@ -174,6 +178,8 @@ emailRegistry.addSetup('initialize', async () => {
 await emailRegistry.setup('initialize');
 await emailRegistry.setup('initialize'); // No-op, already ran
 ```
+
+Each callback runs once. A callback that fails is retried on the next `setup()` or `get()` (callbacks that succeeded don't run again), and a callback added after its group ran still runs on the next call.
 
 ### Setup groups
 

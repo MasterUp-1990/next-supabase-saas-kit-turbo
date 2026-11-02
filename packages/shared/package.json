@@ -12,13 +12,15 @@
   "exports": {
     "./logger": "./src/logger/index.ts",
     "./utils": "./src/utils.ts",
+    "./safe-redirect": "./src/safe-redirect.ts",
     "./events": "./src/events/index.tsx",
     "./registry": "./src/registry/index.ts",
     "./env": "./src/env/index.ts"
   },
   "scripts": {
     "clean": "git clean -xdf .turbo node_modules",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "next-runtime-env": "catalog:",
@@ -26,6 +28,7 @@
   },
   "devDependencies": {
     "@kit/tsconfig": "workspace:*",
-    "@types/react": "catalog:"
+    "@types/react": "catalog:",
+    "vitest": "catalog:"
   }
 }

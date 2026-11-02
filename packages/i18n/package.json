@@ -14,11 +14,14 @@
     ".": "./src/index.ts",
     "./routing": "./src/routing.ts",
     "./navigation": "./src/navigation.ts",
-    "./provider": "./src/client-provider.tsx"
+    "./provider": "./src/client-provider.tsx",
+    "./messages": "./src/messages.ts",
+    "./default-locale": "./src/default-locale.ts"
   },
   "scripts": {
     "clean": "git clean -xdf .turbo node_modules",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test:unit": "vitest run"
   },
   "dependencies": {
     "next-intl": "catalog:"
@@ -28,8 +31,10 @@
     "@kit/tsconfig": "workspace:*",
     "@tanstack/react-query": "catalog:",
     "@types/react": "catalog:",
+    "@types/react-dom": "catalog:",
     "next": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "vitest": "catalog:"
   }
 }

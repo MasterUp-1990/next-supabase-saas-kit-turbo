@@ -7,7 +7,7 @@ import type { z } from 'zod';
 import { useSignInWithEmailPassword } from '@kit/supabase/hooks/use-sign-in-with-email-password';
 
 import { useCaptcha } from '../captcha/client';
-import { useLastAuthMethod } from '../hooks/use-last-auth-method';
+import { useRecordAuthMethod } from '../hooks/use-last-auth-method';
 import type { PasswordSignInSchema } from '../schemas/password-sign-in.schema';
 import { AuthErrorAlert } from './auth-error-alert';
 import { PasswordSignInForm } from './password-sign-in-form';
@@ -21,7 +21,7 @@ export function PasswordSignInContainer({
 }) {
   const captcha = useCaptcha({ siteKey: captchaSiteKey });
   const signInMutation = useSignInWithEmailPassword();
-  const { recordAuthMethod } = useLastAuthMethod();
+  const recordAuthMethod = useRecordAuthMethod();
   const isLoading = signInMutation.isPending;
   const isRedirecting = signInMutation.isSuccess;
   const captchaLoading = !captcha.isReady;

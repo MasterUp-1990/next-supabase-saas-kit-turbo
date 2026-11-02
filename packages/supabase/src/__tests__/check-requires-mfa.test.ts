@@ -85,9 +85,8 @@ function createClientWithSession(params: {
   storedUser: Record<string, unknown>;
   serverResponse: ServerResponse;
 }) {
-  const store = new Map([
-    [STORAGE_KEY, JSON.stringify(createSession(params.storedUser))],
-  ]);
+  const session = createSession(params.storedUser);
+  const store = new Map([[STORAGE_KEY, JSON.stringify(session)]]);
 
   const fetch = createFetch(params.serverResponse);
 
@@ -106,12 +105,12 @@ function createClientWithSession(params: {
     global: { fetch },
   });
 
-  return { client, fetch };
+  return { client, fetch, session };
 }
 
 describe('checkRequiresMultiFactorAuthentication', () => {
   it('requires MFA when the session cookie has its factors stripped', async () => {
-    const { client, fetch } = createClientWithSession({
+    const { client, fetch, session } = createClientWithSession({
       storedUser: strippedUser,
       serverResponse: {
         status: 200,
@@ -125,9 +124,8 @@ describe('checkRequiresMultiFactorAuthentication', () => {
 
     const [, init] = fetch.mock.calls[0] as unknown as [string, RequestInit];
     const headers = new Headers(init.headers);
-    const { access_token } = createSession(strippedUser);
 
-    expect(headers.get('Authorization')).toBe(`Bearer ${access_token}`);
+    expect(headers.get('Authorization')).toBe(`Bearer ${session.access_token}`);
   });
 
   it('does not require MFA when the server reports no verified factors', async () => {

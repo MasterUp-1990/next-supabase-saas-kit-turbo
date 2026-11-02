@@ -1,4 +1,9 @@
-import type { FeaturePolicyDefinition, PolicyErrorCode } from './declarative';
+import {
+  type FeaturePolicyDefinition,
+  type PolicyErrorCode,
+  failedEvaluation,
+  toPolicyResult,
+} from './declarative';
 import type { PolicyRegistry } from './registry';
 import type { PolicyContext, PolicyResult, PolicyStage } from './types';
 
@@ -8,6 +13,39 @@ const OPERATORS = {
 };
 
 type Operator = (typeof OPERATORS)[keyof typeof OPERATORS];
+
+// an i18n key, like every policy reason in this kit
+const DEFAULT_DENY_REASON = 'common.genericError';
+
+// typos fail loudly instead of running as ANY
+function assertOperator(operator: string) {
+  if (operator !== OPERATORS.ALL && operator !== OPERATORS.ANY) {
+    throw new Error(`Unknown policy operator "${operator}"`);
+  }
+}
+
+// a plain policy function fails closed like a definePolicy one
+async function runPolicyFunction<TContext extends PolicyContext>(
+  policy: PolicyFunction<TContext>,
+  context: Readonly<TContext>,
+  stage?: PolicyStage,
+) {
+  try {
+    const result = toPolicyResult(await policy(context, stage));
+
+    return (
+      result ??
+      failedEvaluation({
+        stage,
+        error: new TypeError(
+          'Policy did not return a { allowed: boolean } result',
+        ),
+      })
+    );
+  } catch (error) {
+    return failedEvaluation({ stage, error });
+  }
+}
 
 /**
  * Simple policy function type
@@ -162,6 +200,8 @@ export class PoliciesEvaluator<TContext extends PolicyContext = PolicyContext> {
     operator: Operator = OPERATORS.ALL,
     stage?: PolicyStage,
   ): Promise<EvaluationResult> {
+    assertOperator(operator);
+
     const results: PolicyResult[] = [];
     const reasons: string[] = [];
     const policyIds = registry.listPolicies();
@@ -182,8 +222,8 @@ export class PoliciesEvaluator<TContext extends PolicyContext = PolicyContext> {
 
       results.push(result);
 
-      if (!result.allowed && result.reason) {
-        reasons.push(result.reason);
+      if (!result.allowed) {
+        reasons.push(result.reason || DEFAULT_DENY_REASON);
       }
 
       if (operator === OPERATORS.ALL && !result.allowed) {
@@ -220,15 +260,22 @@ export class PoliciesEvaluator<TContext extends PolicyContext = PolicyContext> {
     context: TContext,
     stage?: PolicyStage,
   ): Promise<EvaluationResult> {
+    assertOperator(group.operator);
+
     const results: PolicyResult[] = [];
     const reasons: string[] = [];
 
     for (const policy of group.policies) {
-      const result = await policy(Object.freeze({ ...context }), stage);
+      const result = await runPolicyFunction(
+        policy,
+        Object.freeze({ ...context }),
+        stage,
+      );
+
       results.push(result);
 
-      if (!result.allowed && result.reason) {
-        reasons.push(result.reason);
+      if (!result.allowed) {
+        reasons.push(result.reason || DEFAULT_DENY_REASON);
       }
 
       // Short-circuit logic

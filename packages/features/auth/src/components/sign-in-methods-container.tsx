@@ -6,7 +6,6 @@ import { useRouter } from 'next/navigation';
 
 import type { Provider } from '@supabase/supabase-js';
 
-import { isBrowser } from '@kit/shared/utils';
 import { If } from '@kit/ui/if';
 import { Separator } from '@kit/ui/separator';
 import { Trans } from '@kit/ui/trans';
@@ -36,10 +35,6 @@ export function SignInMethodsContainer(props: {
 }) {
   const router = useRouter();
 
-  const redirectUrl = isBrowser()
-    ? new URL(props.paths.callback, window?.location.origin).toString()
-    : '';
-
   const onSignIn = useCallback(() => {
     const returnPath = props.paths.returnPath || '/home';
 
@@ -67,7 +62,7 @@ export function SignInMethodsContainer(props: {
 
       <If condition={props.providers.magicLink}>
         <MagicLinkAuthContainer
-          redirectUrl={redirectUrl}
+          redirectUrl={props.paths.callback}
           shouldCreateUser={false}
           captchaSiteKey={props.captchaSiteKey}
         />

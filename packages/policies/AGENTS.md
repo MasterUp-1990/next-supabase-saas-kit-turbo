@@ -12,7 +12,18 @@
 6. Only when a policy needs per-call config (e.g. `['max-invitations', { maxInvitations: 5 }]`): load it with
    `createPoliciesFromRegistry(registry, specs)` and run the result with `evaluator.evaluatePolicies(policies, context,
    operator, stage)` (or `evaluateGroups()` for staged AND/OR groups). `evaluate(registry, …)` does not pass config.
-7. NEVER evaluate policies without specifying an operator (`'ALL'` = AND, `'ANY'` = OR)
+7. NEVER evaluate policies without specifying an operator (`'ALL'` = AND, `'ANY'` = OR); any other value throws
+8. Policies fail closed: a throw, a reject or anything but a `{ allowed: boolean }` result denies with
+   `POLICY_EVALUATION_ERROR` / `common.genericError`, and the raw error goes to the server log only. Don't catch inside a
+   policy to return `allow()`, and never put raw error text in `reason` or `metadata`: results can reach the browser.
+9. `registerPolicy` only accepts `definePolicy` results; definitions are frozen. Don't hand-build policy objects.
+10. `metadata.policyId` and `metadata.stage` are set by the kit; don't rely on overriding them.
+11. Keep `stage` strings exact: a typo filters every stage-scoped policy out, and `'ALL'` then allows.
+12. `stages: []` throws in `definePolicy`; omit `stages` to run a policy in every stage.
+
+## Verification
+
+- `pnpm --filter @kit/policies test:unit`
 
 ## Key Imports
 

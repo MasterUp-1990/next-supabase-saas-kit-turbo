@@ -5,6 +5,8 @@ import type { ReactNode } from 'react';
 import type { AbstractIntlMessages } from 'next-intl';
 import { NextIntlClientProvider } from 'next-intl';
 
+import { getMessageFallback } from './messages';
+
 const isDevelopment = process.env.NODE_ENV === 'development';
 
 interface I18nClientProviderProps {
@@ -29,10 +31,7 @@ export function I18nClientProvider({
       locale={locale}
       messages={messages}
       timeZone={timeZone}
-      getMessageFallback={(info) => {
-        // simply fallback to the key as is
-        return info.key;
-      }}
+      getMessageFallback={getMessageFallback}
       onError={(error) => {
         if (isDevelopment) {
           // Missing translations are expected and should only log an error

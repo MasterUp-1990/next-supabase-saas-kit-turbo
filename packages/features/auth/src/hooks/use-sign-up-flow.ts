@@ -7,7 +7,7 @@ import { useRouter } from 'next/navigation';
 import { useAppEvents } from '@kit/shared/events';
 import { useSignUpWithEmailAndPassword } from '@kit/supabase/hooks/use-sign-up-with-email-password';
 
-import { useLastAuthMethod } from './use-last-auth-method';
+import { useRecordAuthMethod } from './use-last-auth-method';
 
 type SignUpCredentials = {
   email: string;
@@ -35,7 +35,7 @@ export function usePasswordSignUpFlow({
   const router = useRouter();
   const signUpMutation = useSignUpWithEmailAndPassword();
   const appEvents = useAppEvents();
-  const { recordAuthMethod } = useLastAuthMethod();
+  const recordAuthMethod = useRecordAuthMethod();
 
   const signUp = useCallback(
     async (credentials: SignUpCredentials) => {
@@ -46,7 +46,9 @@ export function usePasswordSignUpFlow({
       try {
         const data = await signUpMutation.mutateAsync({
           ...credentials,
-          emailRedirectTo,
+          // resolved at submit time, so render never reads `window`
+          emailRedirectTo: new URL(emailRedirectTo, window.location.origin)
+            .href,
           captchaToken,
         });
 

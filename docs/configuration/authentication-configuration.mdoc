@@ -183,6 +183,13 @@ These rules validate:
 2. At least one number
 3. At least one special character
 
+These flags only validate the form. The browser calls Supabase Auth directly, so a script can skip the form: Supabase Auth's own password settings are what's enforced. Set them to match:
+
+- **Local:** `minimum_password_length` (default `8`, the form's minimum) and `password_requirements` in `apps/web/supabase/config.toml`. Restart Supabase after changing them.
+- **Production:** the Email provider's password settings under Authentication in the Supabase Dashboard (minimum length and required characters), or `supabase config push` from a linked project.
+
+Supabase's levels are cumulative (`letters_digits`, `lower_upper_letters_digits`, `lower_upper_letters_digits_symbols`). Pick the level that covers the flags you enable. The form's special-character set is narrower than Supabase's symbol set. Supabase checks passwords only when they're set, so existing users aren't affected.
+
 ## CAPTCHA Protection
 
 Protect authentication forms with Cloudflare Turnstile:

@@ -5,7 +5,7 @@ import createNextIntlMiddleware from 'next-intl/middleware';
 
 import { isSuperAdmin } from '@kit/admin';
 import { routing } from '@kit/i18n/routing';
-import { getSafeRedirectPath } from '@kit/shared/utils';
+import { getSafeRedirectPath } from '@kit/shared/safe-redirect';
 import {
   InvalidSessionError,
   verifySessionAssurance,
@@ -15,6 +15,22 @@ import { createMiddlewareClient } from '@kit/supabase/middleware-client';
 import pathsConfig from '~/config/paths.config';
 
 const NEXT_ACTION_HEADER = 'next-action';
+
+// Sent on every page response, whether or not strict CSP is enabled. They are
+// defaults: a header already on the response (e.g. from Nosecone when
+// ENABLE_STRICT_CSP=true) is kept.
+const DEFAULT_SECURITY_HEADERS: Record<string, string> = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'SAMEORIGIN',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=()',
+  'Cross-Origin-Opener-Policy': 'same-origin',
+};
+
+// production builds only: browsers ignore HSTS over http, and a dev server on
+// https://localhost would make the browser pin https for localhost for two
+// years. Append `; includeSubDomains` once every subdomain serves https.
+const HSTS_HEADER = 'max-age=63072000';
 
 export const config = {
   matcher: [
@@ -321,16 +337,36 @@ function setRequestId(request: Request) {
 }
 
 /**
+ * @name setDefaultSecurityHeaders
+ * @description Set the default security headers that the response lacks.
+ */
+function setDefaultSecurityHeaders(response: NextResponse) {
+  const defaults = { ...DEFAULT_SECURITY_HEADERS };
+
+  if (process.env.NODE_ENV === 'production') {
+    defaults['Strict-Transport-Security'] = HSTS_HEADER;
+  }
+
+  for (const [key, value] of Object.entries(defaults)) {
+    if (!response.headers.has(key)) {
+      response.headers.set(key, value);
+    }
+  }
+
+  return response;
+}
+
+/**
  * @name createResponseWithSecureHeaders
- * @description Create a middleware with enhanced headers applied (if applied).
- * This is disabled by default. To enable set ENABLE_STRICT_CSP=true
+ * @description Apply the default security headers, plus the strict CSP
+ * headers from Nosecone when ENABLE_STRICT_CSP=true (disabled by default).
  */
 async function createResponseWithSecureHeaders(response: NextResponse) {
   const enableStrictCsp = process.env.ENABLE_STRICT_CSP ?? 'false';
 
   // we disable ENABLE_STRICT_CSP by default
   if (enableStrictCsp === 'false') {
-    return response;
+    return setDefaultSecurityHeaders(response);
   }
 
   const { createCspResponse } = await import('./lib/create-csp-response');
@@ -343,5 +379,5 @@ async function createResponseWithSecureHeaders(response: NextResponse) {
     }
   }
 
-  return response;
+  return setDefaultSecurityHeaders(response);
 }

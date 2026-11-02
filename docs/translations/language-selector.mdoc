@@ -168,10 +168,10 @@ User visits /  →  Accept-Language: es  →  Redirect to /es/
 
 ### 3. Default Fallback
 
-If no matching locale is found, the system redirects to `NEXT_PUBLIC_DEFAULT_LOCALE`:
+If no matching locale is found, the system uses the default locale, set in `packages/i18n/src/default-locale.ts`:
 
-```bash title=".env"
-NEXT_PUBLIC_DEFAULT_LOCALE=en
+```ts title="packages/i18n/src/default-locale.ts"
+const DEFAULT_LOCALE = 'en';
 ```
 
 ## Configuration Options

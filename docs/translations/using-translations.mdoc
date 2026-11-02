@@ -320,19 +320,20 @@ export async function myServerAction() {
 }
 ```
 
-## Environment Variables
+## Default Language
 
-Configure language behavior with these environment variables:
+The default language (the fallback when no user preference is available) is set in code:
 
-```bash title=".env"
-# Default language (fallback when user preference unavailable)
-NEXT_PUBLIC_DEFAULT_LOCALE=en
+```ts title="packages/i18n/src/default-locale.ts"
+const DEFAULT_LOCALE = 'en';
 ```
+
+The `NEXT_PUBLIC_DEFAULT_LOCALE` environment variable still overrides it, but it is deprecated.
 
 The locale is determined by the URL prefix (e.g., `/en/`, `/es/`). When a user visits the root URL, they are redirected to their preferred locale based on:
 
 1. The browser's `Accept-Language` header
-2. Falls back to `NEXT_PUBLIC_DEFAULT_LOCALE`
+2. Falls back to the default locale
 
 ## Troubleshooting
 
@@ -359,7 +360,7 @@ If translations don't update after editing JSON files:
      {"question": "Why are my translations not showing?", "answer": "Check that the namespace is registered in the namespaces array in apps/web/i18n/request.ts, the JSON file exists in apps/web/i18n/messages/{locale}/, and verify the key uses dot notation (namespace.key not namespace:key)."},
      {"question": "Can I use translations in Server Actions?", "answer": "Yes, import getTranslations from next-intl/server and call it at the start of your server action. Then use the returned t() function for translations."},
      {"question": "What's the difference between Trans component and useTranslations hook?", "answer": "Trans is a React component that renders translated strings directly in JSX, supporting interpolation and HTML. useTranslations is a hook that returns a t() function for programmatic access to translations, useful for attributes, conditionals, or non-JSX contexts."},
-     {"question": "How do I handle missing translations during development?", "answer": "Missing translations log warnings to the console. Use [TODO] prefixes in your JSON values to make untranslated strings searchable. The system falls back to the key name if no translation is found."}
+     {"question": "How do I handle missing translations during development?", "answer": "Missing translations log warnings to the console. Use [TODO] prefixes in your JSON values to make untranslated strings searchable. A key missing in a locale falls back to the default locale; a key missing everywhere renders as its full `namespace.key` path."}
    ]
 /%}
 

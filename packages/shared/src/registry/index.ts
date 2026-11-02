@@ -1,26 +1,20 @@
-/**
- * Implementation factory type
- */
 export type ImplementationFactory<T> = () => T | Promise<T>;
 
-/**
- * Public API types with improved get method
- */
 export interface Registry<T, Names extends string> {
   register: (
     name: Names,
     factory: ImplementationFactory<T>,
   ) => Registry<T, Names>;
 
-  // Overloaded get method that infers return types based on input.
   get: {
-    <K extends Names>(name: K): Promise<T>;
+    (name: Names): Promise<T>;
     <K extends [Names, ...Names[]]>(
       ...names: K
     ): Promise<{ [P in keyof K]: T }>;
   };
 
   setup: (group?: string) => Promise<void>;
+
   addSetup: (
     group: string,
     callback: () => Promise<void>,
@@ -28,66 +22,20 @@ export interface Registry<T, Names extends string> {
 }
 
 /**
- * @name createRegistry
- * @description Creates a new registry instance with the provided implementations.
- * @returns A new registry instance.
+ * Name → lazy factory map. `get` runs the factory on every call and returns
+ * a fresh instance, so no state is shared between requests or users. A
+ * setup callback runs once; a failed one is retried on the next call.
  */
-export function createRegistry<T, Names extends string = string>(): Registry<
-  T,
-  Names
-> {
-  const implementations = new Map<Names, ImplementationFactory<T>>();
-  const setupCallbacks = new Map<string, Array<() => Promise<void>>>();
-  const setupPromises = new Map<string, Promise<void>>();
+export function createRegistry<T, Names extends string = string>() {
+  const factories = new Map<Names, ImplementationFactory<T>>();
 
-  const registry: Registry<T, Names> = {
-    register(name, factory) {
-      implementations.set(name, factory);
-      return registry;
-    },
+  const setupGroups = new Map<
+    string,
+    Array<{ callback: () => Promise<void>; run?: Promise<void> }>
+  >();
 
-    // Updated get method overload that supports tuple inference
-    get: (async (...names: Names[]) => {
-      await registry.setup();
-
-      if (names.length === 1) {
-        return await getImplementation(names[0]!);
-      }
-
-      return await Promise.all(names.map((name) => getImplementation(name)));
-    }) as Registry<T, Names>['get'],
-
-    async setup(group?: string) {
-      if (group) {
-        if (!setupPromises.has(group)) {
-          const callbacks = setupCallbacks.get(group) ?? [];
-
-          setupPromises.set(
-            group,
-            Promise.all(callbacks.map((cb) => cb())).then(() => void 0),
-          );
-        }
-
-        return setupPromises.get(group);
-      }
-
-      const groups = Array.from(setupCallbacks.keys());
-
-      await Promise.all(groups.map((group) => registry.setup(group)));
-    },
-
-    addSetup(group, callback) {
-      if (!setupCallbacks.has(group)) {
-        setupCallbacks.set(group, []);
-      }
-
-      setupCallbacks.get(group)!.push(callback);
-      return registry;
-    },
-  };
-
-  async function getImplementation(name: Names) {
-    const factory = implementations.get(name);
+  async function build(name: Names) {
+    const factory = factories.get(name);
 
     if (!factory) {
       throw new Error(`Implementation "${name}" not found`);
@@ -101,6 +49,62 @@ export function createRegistry<T, Names extends string = string>(): Registry<
 
     return implementation;
   }
+
+  // Each callback runs once; a failed one is retried on the next setup, and
+  // callbacks added after the group ran still run.
+  async function runGroup(name: string) {
+    const steps = setupGroups.get(name) ?? [];
+
+    await Promise.all(
+      steps.map((step) => {
+        if (!step.run) {
+          const run = Promise.resolve().then(step.callback);
+
+          step.run = run;
+
+          run.catch(() => {
+            if (step.run === run) {
+              step.run = undefined;
+            }
+          });
+        }
+
+        return step.run;
+      }),
+    );
+  }
+
+  const registry: Registry<T, Names> = {
+    register(name, factory) {
+      factories.set(name, factory);
+      return registry;
+    },
+
+    get: (async (...names: Names[]) => {
+      await registry.setup();
+
+      const instances = names.map((name) => build(name));
+
+      return names.length === 1 ? instances[0] : Promise.all(instances);
+    }) as Registry<T, Names>['get'],
+
+    async setup(group) {
+      if (group) {
+        return runGroup(group);
+      }
+
+      await Promise.all([...setupGroups.keys()].map(runGroup));
+    },
+
+    addSetup(group, callback) {
+      const steps = setupGroups.get(group) ?? [];
+
+      steps.push({ callback });
+      setupGroups.set(group, steps);
+
+      return registry;
+    },
+  };
 
   return registry;
 }

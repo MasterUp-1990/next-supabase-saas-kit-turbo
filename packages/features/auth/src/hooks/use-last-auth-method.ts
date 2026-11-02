@@ -9,26 +9,46 @@ import {
   saveLastAuthMethod,
 } from '../utils/last-auth-method';
 
+function createAuthMethod(
+  method: AuthMethod,
+  options?: {
+    provider?: string;
+    email?: string;
+  },
+): LastAuthMethod {
+  return {
+    method,
+    provider: options?.provider,
+    email: options?.email,
+    timestamp: Date.now(),
+  };
+}
+
+/**
+ * Records the method a user signed in with. Safe to call from components that
+ * render on the server: it only touches localStorage from event handlers.
+ */
+export function useRecordAuthMethod() {
+  return useCallback(
+    (...args: Parameters<typeof createAuthMethod>) =>
+      saveLastAuthMethod(createAuthMethod(...args)),
+    [],
+  );
+}
+
+/**
+ * Reads the last used auth method from localStorage during render, so only
+ * call it below `use(browser())` inside a `<Suspense>` boundary.
+ */
 export function useLastAuthMethod() {
   const [lastAuthMethod, setLastAuthMethod] = useState<LastAuthMethod | null>(
-    getLastAuthMethod(),
+    getLastAuthMethod,
   );
 
   // Save a new auth method - memoized to prevent unnecessary re-renders
   const recordAuthMethod = useCallback(
-    (
-      method: AuthMethod,
-      options?: {
-        provider?: string;
-        email?: string;
-      },
-    ) => {
-      const authMethod: LastAuthMethod = {
-        method,
-        provider: options?.provider,
-        email: options?.email,
-        timestamp: Date.now(),
-      };
+    (...args: Parameters<typeof createAuthMethod>) => {
+      const authMethod = createAuthMethod(...args);
 
       saveLastAuthMethod(authMethod);
       setLastAuthMethod(authMethod);

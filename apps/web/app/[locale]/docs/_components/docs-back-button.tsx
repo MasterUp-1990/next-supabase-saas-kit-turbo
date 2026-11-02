@@ -7,7 +7,7 @@ import { useSearchParams } from 'next/navigation';
 
 import { ArrowLeftIcon } from 'lucide-react';
 
-import { getSafeRedirectPath } from '@kit/shared/utils';
+import { getSafeRedirectPath } from '@kit/shared/safe-redirect';
 import { Button } from '@kit/ui/button';
 import { Trans } from '@kit/ui/trans';
 

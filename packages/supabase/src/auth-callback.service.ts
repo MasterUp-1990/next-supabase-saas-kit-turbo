@@ -5,7 +5,7 @@ import {
   SupabaseClient,
 } from '@supabase/supabase-js';
 
-import { isSafeRedirectPath } from '@kit/shared/utils';
+import { isSafeRedirectPath } from '@kit/shared/safe-redirect';
 
 /**
  * @name createAuthCallbackService

@@ -74,8 +74,13 @@ export function LineItemDetails(
           );
         }
 
-        const SetupFee = () => (
-          <If condition={item.setupFee}>
+        const SetupFee = () => {
+          // optional: formatCurrency throws for a missing amount
+          if (item.setupFee === undefined) {
+            return null;
+          }
+
+          return (
             <div className={className}>
               <span className={'flex items-center space-x-1'}>
                 <PlusSquare className={'w-3'} />
@@ -86,7 +91,7 @@ export function LineItemDetails(
                     values={{
                       setupFee: formatCurrency({
                         currencyCode,
-                        value: item.setupFee as number,
+                        value: item.setupFee,
                         locale,
                       }),
                     }}
@@ -94,8 +99,8 @@ export function LineItemDetails(
                 </span>
               </span>
             </div>
-          </If>
-        );
+          );
+        };
 
         const unit =
           item.unit ?? (item.type === 'per_seat' ? 'member' : undefined);

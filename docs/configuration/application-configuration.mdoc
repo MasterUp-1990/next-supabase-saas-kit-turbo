@@ -20,7 +20,7 @@ All configuration is driven by environment variables and validated with Zod at b
 | `NEXT_PUBLIC_SITE_TITLE` | Yes | Browser title tag and SEO title |
 | `NEXT_PUBLIC_SITE_DESCRIPTION` | Yes | Meta description for SEO |
 | `NEXT_PUBLIC_SITE_URL` | Yes | Full URL with protocol (e.g., `https://myapp.com`) |
-| `NEXT_PUBLIC_DEFAULT_LOCALE` | No | Default language code (default: `en`) |
+| `NEXT_PUBLIC_DEFAULT_LOCALE` | No | Deprecated. Overrides the default language set in `packages/i18n/src/default-locale.ts` (`en`) |
 | `NEXT_PUBLIC_DEFAULT_THEME_MODE` | No | Theme: `light`, `dark`, or `system` |
 | `NEXT_PUBLIC_THEME_COLOR` | Yes | Light theme color (hex, e.g., `#ffffff`) |
 | `NEXT_PUBLIC_THEME_COLOR_DARK` | Yes | Dark theme color (hex, e.g., `#0a0a0a`) |
@@ -34,6 +34,7 @@ NEXT_PUBLIC_SITE_URL=https://myapp.com
 NEXT_PUBLIC_PRODUCT_NAME="My SaaS App"
 NEXT_PUBLIC_SITE_TITLE="My SaaS App - Build Faster"
 NEXT_PUBLIC_SITE_DESCRIPTION="The easiest way to build your SaaS application"
+# Deprecated: set DEFAULT_LOCALE in packages/i18n/src/default-locale.ts
 NEXT_PUBLIC_DEFAULT_LOCALE=en
 NEXT_PUBLIC_DEFAULT_THEME_MODE=light
 NEXT_PUBLIC_THEME_COLOR="#ffffff"
@@ -50,7 +51,7 @@ const appConfig = AppConfigSchema.parse({
   title: process.env.NEXT_PUBLIC_SITE_TITLE,
   description: process.env.NEXT_PUBLIC_SITE_DESCRIPTION,
   url: process.env.NEXT_PUBLIC_SITE_URL,
-  locale: process.env.NEXT_PUBLIC_DEFAULT_LOCALE,
+  locale: defaultLocale, // from @kit/i18n/default-locale
   theme: process.env.NEXT_PUBLIC_DEFAULT_THEME_MODE,
   themeColor: process.env.NEXT_PUBLIC_THEME_COLOR,
   themeColorDark: process.env.NEXT_PUBLIC_THEME_COLOR_DARK,

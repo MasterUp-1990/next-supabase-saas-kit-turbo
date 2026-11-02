@@ -6,6 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { useForm, useWatch } from 'react-hook-form';
 import * as z from 'zod';
 
+import { getSafeRedirectPath } from '@kit/shared/safe-redirect';
 import { useSignInWithOtp } from '@kit/supabase/hooks/use-sign-in-with-otp';
 import { useVerifyOtp } from '@kit/supabase/hooks/use-verify-otp';
 import { Button } from '@kit/ui/button';
@@ -27,7 +28,7 @@ import { Spinner } from '@kit/ui/spinner';
 import { Trans } from '@kit/ui/trans';
 
 import { useCaptcha } from '../captcha/client';
-import { useLastAuthMethod } from '../hooks/use-last-auth-method';
+import { useRecordAuthMethod } from '../hooks/use-last-auth-method';
 import { AuthErrorAlert } from './auth-error-alert';
 import { EmailInput } from './email-input';
 import { LastAuthMethodHint } from './last-auth-method-hint';
@@ -43,7 +44,7 @@ type OtpSignInContainerProps = {
 export function OtpSignInContainer(props: OtpSignInContainerProps) {
   const verifyMutation = useVerifyOtp();
   const router = useRouter();
-  const { recordAuthMethod } = useLastAuthMethod();
+  const recordAuthMethod = useRecordAuthMethod();
   const params = useSearchParams();
 
   const otpForm = useForm({
@@ -81,7 +82,7 @@ export function OtpSignInContainer(props: OtpSignInContainerProps) {
     recordAuthMethod('otp', { email });
 
     // on sign ups we redirect to the app home
-    const next = params.get('next') ?? '/home';
+    const next = getSafeRedirectPath(params.get('next'), '/home');
 
     router.replace(next);
   };

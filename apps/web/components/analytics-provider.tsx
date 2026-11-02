@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useEffectEvent } from 'react';
+import { Suspense, use, useCallback, useEffect, useEffectEvent } from 'react';
+import { browser } from 'react-dom';
 
 import { usePathname, useSearchParams } from 'next/navigation';
 
@@ -11,7 +12,6 @@ import {
   ConsumerProvidedEventTypes,
   useAppEvents,
 } from '@kit/shared/events';
-import { isBrowser } from '@kit/shared/utils';
 
 type AnalyticsMapping<
   T extends ConsumerProvidedEventTypes = NonNullable<unknown>,
@@ -85,26 +85,32 @@ const analyticsMapping: AnalyticsMapping = {
   },
 };
 
-function AnalyticsProviderBrowser(props: React.PropsWithChildren) {
-  // Subscribe to app events and map them to analytics actions
-  useAnalyticsMapping(analyticsMapping);
+function PageViewTracker() {
+  use(browser('reports page views from the browser URL'));
 
-  // Report page views to the analytics service
   useReportPageView(useCallback((url) => analytics.trackPageView(url), []));
 
-  // Render children
-  return props.children;
+  return null;
 }
 
 /**
- * Provider for the analytics service
+ * Provider for the analytics service. Children always render on the server.
+ * App events are subscribed in an effect here, in the same commit as the
+ * children's effects (React runs them child-first), not after a browser-only
+ * boundary resolves; page views come from a browser-only leaf.
  */
 export function AnalyticsProvider(props: React.PropsWithChildren) {
-  if (!isBrowser()) {
-    return props.children;
-  }
+  useAnalyticsMapping(analyticsMapping);
 
-  return <AnalyticsProviderBrowser>{props.children}</AnalyticsProviderBrowser>;
+  return (
+    <>
+      <Suspense fallback={null}>
+        <PageViewTracker />
+      </Suspense>
+
+      {props.children}
+    </>
+  );
 }
 
 /**

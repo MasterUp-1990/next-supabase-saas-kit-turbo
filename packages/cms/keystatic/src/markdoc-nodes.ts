@@ -1,5 +1,11 @@
 // Or replace this with your own function
-import { Config, Node, RenderableTreeNode, Tag } from '@markdoc/markdoc';
+import {
+  Config,
+  Node,
+  RenderableTreeNode,
+  Schema,
+  Tag,
+} from '@markdoc/markdoc';
 
 function generateID(
   children: Array<RenderableTreeNode>,
@@ -17,7 +23,7 @@ function generateID(
     .toLowerCase();
 }
 
-const heading = {
+const heading: Schema = {
   children: ['inline'],
   attributes: {
     id: { type: String },

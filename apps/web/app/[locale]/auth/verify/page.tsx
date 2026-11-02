@@ -6,7 +6,7 @@ import { connection } from 'next/server';
 import { getTranslations } from 'next-intl/server';
 
 import { MultiFactorChallengeContainer } from '@kit/auth/mfa';
-import { getSafeRedirectPath } from '@kit/shared/utils';
+import { getSafeRedirectPath } from '@kit/shared/safe-redirect';
 import {
   InvalidSessionError,
   verifySessionAssurance,

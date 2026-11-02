@@ -1,13 +1,13 @@
 import { createRegistry } from '@kit/shared/registry';
 
-import type { FeaturePolicyDefinition } from './declarative';
+import { type FeaturePolicyDefinition, isDefinedPolicy } from './declarative';
 import type { PolicyContext } from './types';
 
 /**
  * Simple policy registry interface
  */
 export interface PolicyRegistry {
-  /** Register a single policy definition */
+  /** Register a policy created with `definePolicy`; throws for any other object or a duplicate id */
   registerPolicy<
     TContext extends PolicyContext = PolicyContext,
     TConfig = unknown,
@@ -43,6 +43,13 @@ export function createPolicyRegistry(): PolicyRegistry {
       TContext extends PolicyContext = PolicyContext,
       TConfig = unknown,
     >(definition: FeaturePolicyDefinition<TContext, TConfig>) {
+      // only definePolicy results fail closed
+      if (!isDefinedPolicy(definition)) {
+        throw new Error(
+          `Policy "${String(definition.id)}" must be created with definePolicy`,
+        );
+      }
+
       // Check for duplicates
       if (policyIds.has(definition.id)) {
         throw new Error(

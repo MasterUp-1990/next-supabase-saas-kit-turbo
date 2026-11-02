@@ -7,7 +7,7 @@ import { connection } from 'next/server';
 import { getTranslations } from 'next-intl/server';
 
 import { AuthLayoutShell } from '@kit/auth/auth-layout';
-import { getSafeRedirectPath } from '@kit/shared/utils';
+import { getSafeRedirectPath } from '@kit/shared/safe-redirect';
 import { requireUser } from '@kit/supabase/require-user';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';
 import { Heading } from '@kit/ui/heading';

@@ -62,7 +62,7 @@ async function sendInvitation() {
     invitedUserEmail: 'jane@example.com',
     link: 'https://app.example.com/invite/abc123',
     productName: 'Your App',
-    language: 'en', // optional, defaults to NEXT_PUBLIC_DEFAULT_LOCALE
+    language: 'en', // optional, defaults to the app's default locale
   });
 
   const mailer = await getMailer();

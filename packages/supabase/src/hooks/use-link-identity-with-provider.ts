@@ -2,7 +2,7 @@ import type { Provider } from '@supabase/supabase-js';
 
 import { useMutation } from '@tanstack/react-query';
 
-import { getSafeRedirectPath } from '@kit/shared/utils';
+import { getSafeRedirectPath } from '@kit/shared/safe-redirect';
 
 import { useSupabase } from './use-supabase';
 

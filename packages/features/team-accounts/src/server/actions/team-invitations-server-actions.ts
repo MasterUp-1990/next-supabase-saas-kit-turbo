@@ -7,7 +7,7 @@ import * as z from 'zod';
 
 import { authActionClient } from '@kit/next/safe-action';
 import { getLogger } from '@kit/shared/logger';
-import { getSafeRedirectPath } from '@kit/shared/utils';
+import { getSafeRedirectPath } from '@kit/shared/safe-redirect';
 import { Database } from '@kit/supabase/database';
 import { getSupabaseServerAdminClient } from '@kit/supabase/server-admin-client';
 import { getSupabaseServerClient } from '@kit/supabase/server-client';

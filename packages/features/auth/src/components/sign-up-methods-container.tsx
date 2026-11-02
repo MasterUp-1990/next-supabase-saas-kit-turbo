@@ -1,8 +1,12 @@
 'use client';
 
+import { Suspense } from 'react';
+
+import { useSearchParams } from 'next/navigation';
+
 import type { Provider } from '@supabase/supabase-js';
 
-import { isBrowser, isSafeRedirectPath } from '@kit/shared/utils';
+import { isSafeRedirectPath } from '@kit/shared/safe-redirect';
 import { If } from '@kit/ui/if';
 import { Separator } from '@kit/ui/separator';
 import { Trans } from '@kit/ui/trans';
@@ -12,7 +16,7 @@ import { OauthProviders } from './oauth-providers';
 import { OtpSignInContainer } from './otp-sign-in-container';
 import { EmailPasswordSignUpContainer } from './password-sign-up-container';
 
-export function SignUpMethodsContainer(props: {
+interface SignUpMethodsContainerProps {
   paths: {
     callback: string;
     appHome: string;
@@ -30,9 +34,53 @@ export function SignUpMethodsContainer(props: {
 
   displayTermsCheckbox?: boolean;
   captchaSiteKey?: string;
-}) {
-  const redirectUrl = getCallbackUrl(props);
-  const defaultValues = getDefaultValues();
+
+  /** Path to continue to after the email link; ignored unless safe. Prefer reading it from `searchParams` on the server. */
+  nextPath?: string;
+
+  /** Prefills the email field. Prefer reading it from `searchParams` on the server. */
+  defaultEmail?: string;
+}
+
+/**
+ * Pass `nextPath` and `defaultEmail` from the page's `searchParams`. When
+ * neither prop is passed (pages written before they existed), `next` and
+ * `email` are read with `useSearchParams()` instead: the form renders without
+ * them on the server and with them once the browser has the URL.
+ */
+export function SignUpMethodsContainer(props: SignUpMethodsContainerProps) {
+  const hasParamsFromPage = 'nextPath' in props || 'defaultEmail' in props;
+
+  if (hasParamsFromPage) {
+    return <SignUpMethods {...props} />;
+  }
+
+  return (
+    <Suspense fallback={<SignUpMethods {...props} />}>
+      <SignUpMethodsFromSearchParams {...props} />
+    </Suspense>
+  );
+}
+
+function SignUpMethodsFromSearchParams(props: SignUpMethodsContainerProps) {
+  const searchParams = useSearchParams();
+
+  return (
+    <SignUpMethods
+      {...props}
+      nextPath={searchParams.get('next') ?? undefined}
+      defaultEmail={searchParams.get('email') ?? undefined}
+    />
+  );
+}
+
+function SignUpMethods(props: SignUpMethodsContainerProps) {
+  const redirectUrl = getCallbackPath({
+    callback: props.paths.callback,
+    nextPath: props.nextPath,
+  });
+
+  const defaultValues = { email: props.defaultEmail ?? '' };
 
   return (
     <>
@@ -96,39 +144,16 @@ export function SignUpMethodsContainer(props: {
   );
 }
 
-function getCallbackUrl(props: {
-  paths: {
-    callback: string;
-    appHome: string;
-  };
-}) {
-  if (!isBrowser()) {
-    return '';
-  }
-
-  const redirectPath = props.paths.callback;
-  const origin = window.location.origin;
-  const url = new URL(redirectPath, origin);
-
-  const searchParams = new URLSearchParams(window.location.search);
-  const next = searchParams.get('next');
+// a relative path; the forms resolve it against the origin at submit time
+function getCallbackPath(params: { callback: string; nextPath?: string }) {
+  const { callback, nextPath } = params;
 
   // Only pass through the next param if it's a safe internal path
-  if (next && isSafeRedirectPath(next)) {
-    url.searchParams.set('next', next);
+  if (!nextPath || !isSafeRedirectPath(nextPath)) {
+    return callback;
   }
 
-  return url.href;
-}
+  const query = new URLSearchParams({ next: nextPath });
 
-function getDefaultValues() {
-  if (!isBrowser()) {
-    return { email: '' };
-  }
-
-  const searchParams = new URLSearchParams(window.location.search);
-
-  return {
-    email: searchParams.get('email') ?? '',
-  };
+  return `${callback}?${query.toString()}`;
 }

@@ -55,6 +55,13 @@ jwt_expiry = 3600
 # Allow/disallow new user signups to your project.
 enable_signup = true
 enable_manual_linking = true
+# Enforced by Supabase Auth on every endpoint that sets a password, so a direct
+# API call can't skip the form's rules. Keep in sync with the form (8 in
+# `password.schema.ts`); production uses the dashboard's values.
+minimum_password_length = 8
+# "", `letters_digits`, `lower_upper_letters_digits` or
+# `lower_upper_letters_digits_symbols`; match the NEXT_PUBLIC_PASSWORD_REQUIRE_* flags
+password_requirements = ""
 
 # Enable TOTP MFA
 [auth.mfa.totp]

@@ -52,7 +52,7 @@ This checks that all required variables are present and correctly formatted.
 | `NEXT_PUBLIC_SITE_TITLE` | Browser tab title | `MyApp - Build faster` |
 | `NEXT_PUBLIC_SITE_DESCRIPTION` | Meta description for SEO | `The fastest way to build SaaS` |
 | `NEXT_PUBLIC_DEFAULT_THEME_MODE` | Default theme | `light`, `dark`, or `system` |
-| `NEXT_PUBLIC_DEFAULT_LOCALE` | Default language | `en` |
+| `NEXT_PUBLIC_DEFAULT_LOCALE` | Deprecated: set the default language in `packages/i18n/src/default-locale.ts`. Still overrides it | `en` |
 
 ### Supabase Configuration
 
@@ -198,6 +198,7 @@ NEXT_PUBLIC_PRODUCT_NAME=MyApp
 NEXT_PUBLIC_SITE_TITLE=MyApp - Build SaaS Faster
 NEXT_PUBLIC_SITE_DESCRIPTION=The complete SaaS starter kit
 NEXT_PUBLIC_DEFAULT_THEME_MODE=light
+# Deprecated: set DEFAULT_LOCALE in packages/i18n/src/default-locale.ts
 NEXT_PUBLIC_DEFAULT_LOCALE=en
 
 # ============================================

@@ -1,7 +1,5 @@
 'use client';
 
-import { isBrowser } from '@kit/shared/utils';
-
 // Key for localStorage
 const LAST_AUTH_METHOD_KEY = 'auth_last_method';
 
@@ -32,13 +30,10 @@ export function saveLastAuthMethod(authMethod: LastAuthMethod): void {
 }
 
 /**
- * Get the last used authentication method from localStorage
+ * Get the last used authentication method from localStorage. Browser only:
+ * call it from event handlers or below `use(browser())`.
  */
 export function getLastAuthMethod() {
-  if (!isBrowser()) {
-    return null;
-  }
-
   try {
     const stored = localStorage.getItem(LAST_AUTH_METHOD_KEY);
 

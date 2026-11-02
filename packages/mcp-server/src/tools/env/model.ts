@@ -147,7 +147,8 @@ export const envVariables: EnvVariableModel[] = [
     name: 'NEXT_PUBLIC_DEFAULT_LOCALE',
     displayName: 'Default Locale',
     type: 'string',
-    description: 'Sets the default language for your application.',
+    description:
+      'Deprecated: set DEFAULT_LOCALE in packages/i18n/src/default-locale.ts instead. Still overrides it when set.',
     category: 'Localization',
     hint: `Ex. "en"`,
     validate: ({ value }) => {

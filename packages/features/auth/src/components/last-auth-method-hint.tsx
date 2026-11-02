@@ -1,6 +1,7 @@
 'use client';
 
-import dynamic from 'next/dynamic';
+import { Suspense, use } from 'react';
+import { browser } from 'react-dom';
 
 import { Badge } from '@kit/ui/badge';
 import { Trans } from '@kit/ui/trans';
@@ -15,19 +16,23 @@ interface LastAuthMethodHintProps {
   type: AuthMethod;
 }
 
-// we force dynamic import to avoid hydration errors
-export const LastAuthMethodHint = dynamic(
-  async () => ({ default: LastAuthMethodHintImpl }),
-  {
-    ssr: false,
-  },
-);
+// the last method lives in localStorage, so the hint renders in the browser
+// only, after hydration
+export function LastAuthMethodHint(props: LastAuthMethodHintProps) {
+  return (
+    <Suspense fallback={null}>
+      <LastAuthMethodHintImpl {...props} />
+    </Suspense>
+  );
+}
 
 function LastAuthMethodHintImpl({
   className,
   type,
   name,
 }: LastAuthMethodHintProps) {
+  use(browser('reads the last auth method from localStorage'));
+
   const { hasLastMethod, methodType, isOAuth, providerName } =
     useLastAuthMethod();
 

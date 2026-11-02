@@ -1,84 +1,64 @@
+export { getSafeRedirectPath, isSafeRedirectPath } from './safe-redirect';
+
+const DECIMAL = /^-?\d+(\.\d+)?$/;
+
 /**
- * Check if the code is running in a browser environment.
+ * @deprecated A render-time `typeof window` check renders different output on
+ * the server and in the browser (hydration mismatch). In render, use
+ * `use(browser())` from `react-dom` inside a `<Suspense>` boundary; in effects
+ * and event handlers, no check is needed.
  */
 export function isBrowser() {
   return typeof window !== 'undefined';
 }
 
+const FALLBACK_LOCALE = 'en';
+
+/**
+ * A BCP 47 tag for `locale` (`en_US` becomes `en-US`), or `FALLBACK_LOCALE`
+ * when it isn't a valid tag.
+ */
+function toLocaleTag(locale: string) {
+  try {
+    return (
+      Intl.getCanonicalLocales(locale.replaceAll('_', '-'))[0] ??
+      FALLBACK_LOCALE
+    );
+  } catch {
+    return FALLBACK_LOCALE;
+  }
+}
+
 /**
  * @name formatCurrency
- * @description Format the currency based on the currency code
+ * @description Format `value` as money in `currencyCode` for `locale`.
+ * Decimal strings (e.g. Postgres `numeric` columns) are formatted exactly,
+ * without rounding through `Number`. Throws a `RangeError` unless the amount
+ * is a finite number or a plain decimal string, so a missing amount never
+ * shows as `$0.00`.
  */
 export function formatCurrency(params: {
   currencyCode: string;
   locale: string;
   value: string | number;
 }) {
-  const [lang, region] = params.locale.split('-');
+  const { value } = params;
 
-  return new Intl.NumberFormat(region ?? lang, {
+  const isValid =
+    typeof value === 'number'
+      ? Number.isFinite(value)
+      : typeof value === 'string' && DECIMAL.test(value);
+
+  if (!isValid) {
+    throw new RangeError(`Invalid amount: ${String(value)}`);
+  }
+
+  const formatter = new Intl.NumberFormat(toLocaleTag(params.locale), {
     style: 'currency',
     currency: params.currencyCode,
-  }).format(Number(params.value));
-}
+  });
 
-/**
- * @name isSafeRedirectPath
- * @description Checks if a path is safe for redirects (prevents open redirect attacks).
- * Safe paths must:
- * - Start with a single `/`
- * - NOT start with `//` (protocol-relative URLs)
- * - NOT contain `://` (absolute URLs)
- * - NOT contain backslash (URL normalization attacks)
- * - NOT contain ASCII control characters (tab/newline/CR are stripped by URL
- *   parsers/browsers and could otherwise smuggle an off-origin host)
- * - Resolve to the same origin when parsed (authoritative defense-in-depth check)
- */
-export function isSafeRedirectPath(path: string): boolean {
-  if (!path || typeof path !== 'string') return false;
-
-  // Must start with exactly one forward slash (relative path)
-  if (!path.startsWith('/') || path.startsWith('//')) return false;
-
-  // Must not contain protocol indicators
-  if (path.includes('://')) return false;
-
-  // Must not contain backslashes (can be normalized to forward slashes)
-  if (path.includes('\\')) return false;
-
-  // Must not contain ASCII control characters (C0 range + DEL). Browsers and
-  // the WHATWG URL parser strip tab/newline/CR before parsing, so a value such
-  // as `/\t//evil.com` would otherwise pass the checks above yet resolve to an
-  // off-origin URL.
-  // eslint-disable-next-line no-control-regex
-  if (/[\u0000-\u001f\u007f]/.test(path)) return false;
-
-  // Authoritative check: resolving the path against a fixed base must not
-  // change the origin. Catches any residual off-origin trick the string checks
-  // above might miss.
-  try {
-    const base = 'https://x.invalid';
-
-    if (new URL(path, base).origin !== base) return false;
-  } catch {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * @name getSafeRedirectPath
- * @description Returns the path if safe, otherwise returns the fallback.
- * Use this to validate user-supplied redirect URLs to prevent open redirect attacks.
- */
-export function getSafeRedirectPath(
-  path: string | null | undefined,
-  fallback: string,
-): string {
-  if (path && isSafeRedirectPath(path)) {
-    return path;
-  }
-
-  return fallback;
+  // Intl formats decimal strings exactly; its TS overloads only accept the
+  // `${number}` literal type, which DECIMAL has just checked
+  return formatter.format(value as `${number}`);
 }

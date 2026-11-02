@@ -12,7 +12,7 @@ import { LoadingOverlay } from '@kit/ui/loading-overlay';
 import { Trans } from '@kit/ui/trans';
 
 import { useCaptcha } from '../captcha/client';
-import { useLastAuthMethod } from '../hooks/use-last-auth-method';
+import { useRecordAuthMethod } from '../hooks/use-last-auth-method';
 import { AuthErrorAlert } from './auth-error-alert';
 import { LastAuthMethodHint } from './last-auth-method-hint';
 
@@ -32,7 +32,7 @@ export function PasskeySignInContainer({
 }) {
   const captcha = useCaptcha({ siteKey: captchaSiteKey });
   const signInMutation = useSignInWithPasskey();
-  const { recordAuthMethod } = useLastAuthMethod();
+  const recordAuthMethod = useRecordAuthMethod();
 
   const loading = signInMutation.isPending;
   const captchaLoading = !captcha.isReady;

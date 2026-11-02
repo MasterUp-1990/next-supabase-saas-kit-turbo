@@ -12,6 +12,7 @@ import { locale as localeRootParam } from 'next/root-params';
 
 import { getRequestConfig } from 'next-intl/server';
 
+import { getMessageFallback, withFallbackMessages } from '@kit/i18n/messages';
 import { routing } from '@kit/i18n/routing';
 
 // Define the namespaces to load
@@ -38,8 +39,8 @@ export default getRequestConfig(async ({ locale: localeOverride }) => {
     locale = routing.defaultLocale;
   }
 
-  // Load all namespace files and merge them
-  const messages = await loadMessages(locale);
+  // Load all namespace files; keys the locale lacks come from the default locale
+  const messages = await loadMessagesWithFallback(locale);
 
   return {
     locale,
@@ -51,11 +52,28 @@ export default getRequestConfig(async ({ locale: localeOverride }) => {
         console.warn(`[Dev Only] i18n error: ${error.message}`);
       }
     },
-    getMessageFallback(info) {
-      return info.key;
-    },
+    getMessageFallback,
   };
 });
+
+/**
+ * Messages for `locale`, with each missing key filled from the default
+ * locale. Cached: messages are static files that only change on deploy.
+ */
+async function loadMessagesWithFallback(locale: string) {
+  'use cache';
+  cacheLife('max');
+
+  const messages = await loadMessages(locale);
+
+  if (locale === routing.defaultLocale) {
+    return messages;
+  }
+
+  const fallback = await loadMessages(routing.defaultLocale);
+
+  return withFallbackMessages({ messages, fallback });
+}
 
 /**
  * Loads translation messages for all namespaces.

@@ -155,8 +155,81 @@ function createImmutableContext<T extends PolicyContext>(
   return deepFreeze(cloned);
 }
 
+// definitions built by definePolicy; the registry accepts only these, so
+// every registered policy fails closed
+const definedPolicies = new WeakSet<object>();
+
+export function isDefinedPolicy(definition: object) {
+  return definedPolicies.has(definition);
+}
+
 /**
- * Factory function to define a policy with metadata and configuration
+ * Reads each field once and rebuilds a plain result, so getters, proxies and
+ * class instances can't make the checked value differ from the returned one.
+ * Returns `null` for anything but a `{ allowed: boolean }` object.
+ */
+export function toPolicyResult(value: unknown): PolicyResult | null {
+  if (typeof value !== 'object' || value === null) {
+    return null;
+  }
+
+  const { allowed, reason, metadata, requiresManualReview } = value as Record<
+    string,
+    unknown
+  >;
+
+  if (typeof allowed !== 'boolean') {
+    return null;
+  }
+
+  return {
+    allowed,
+    reason: typeof reason === 'string' ? reason : undefined,
+    ...(typeof requiresManualReview === 'boolean'
+      ? { requiresManualReview }
+      : {}),
+    metadata:
+      typeof metadata === 'object' && metadata !== null
+        ? { ...metadata }
+        : undefined,
+  };
+}
+
+/**
+ * The deny returned when a policy throws, rejects or returns a non-result.
+ * Results are returned to callers that serialize them to the browser, so the
+ * raw error only goes to the server log.
+ */
+export async function failedEvaluation(params: {
+  error: unknown;
+  policyId?: string;
+  stage?: PolicyStage;
+}) {
+  const { policyId, stage, error } = params;
+
+  try {
+    const logger = await getLogger();
+
+    logger.error(
+      { name: 'policy-evaluation', policyId, stage, error },
+      'Policy evaluation failed',
+    );
+  } catch {
+    // logging must never turn a deny into a crash
+  }
+
+  return deny({
+    code: 'POLICY_EVALUATION_ERROR',
+    message: 'common.genericError',
+    metadata: { policyId, stage },
+  });
+}
+
+/**
+ * Factory function to define a policy with metadata and configuration.
+ * The policy fails closed: a throw, a reject or anything but a
+ * `{ allowed: boolean }` result denies with `POLICY_EVALUATION_ERROR`.
+ * The definition and its stages are frozen.
  */
 export function definePolicy<
   TContext extends PolicyContext = PolicyContext,
@@ -177,20 +250,33 @@ export function definePolicy<
     config?: TConfig,
     stage?: PolicyStage,
   ) => Promise<PolicyResult>;
-}) {
-  return {
-    id: config.id,
-    stages: config.stages,
-    configSchema: config.configSchema,
+}): FeaturePolicyDefinition<TContext, TConfig> {
+  const { id, configSchema } = config;
+
+  // `[]` would run only when no stage is given, which is never what's meant
+  if (config.stages?.length === 0) {
+    throw new Error(
+      `Policy "${id}" has empty stages; omit stages to run in every stage`,
+    );
+  }
+
+  const evaluate = config.evaluate.bind(config);
+  const stages = config.stages && Object.freeze([...config.stages]);
+
+  const definition: FeaturePolicyDefinition<TContext, TConfig> = Object.freeze({
+    id,
+    // frozen at runtime; typed mutable to keep the existing interface
+    stages: stages as PolicyStage[] | undefined,
+    configSchema,
 
     create(context: TContext, policyConfig?: TConfig) {
       // Validate configuration if schema is provided
-      if (config.configSchema && policyConfig !== undefined) {
-        const validation = config.configSchema.safeParse(policyConfig);
+      if (configSchema && policyConfig !== undefined) {
+        const validation = configSchema.safeParse(policyConfig);
 
         if (!validation.success) {
           throw new Error(
-            `Invalid configuration for policy "${config.id}": ${validation.error.message}`,
+            `Invalid configuration for policy "${id}": ${validation.error.message}`,
           );
         }
       }
@@ -201,7 +287,7 @@ export function definePolicy<
       return {
         async evaluate(stage?: PolicyStage) {
           // Check if this policy should run at this stage
-          if (stage && config.stages && !config.stages.includes(stage)) {
+          if (stage && stages && !stages.includes(stage)) {
             return allow({
               skipped: true,
               reason: `Policy not applicable for stage: ${stage}`,
@@ -209,39 +295,27 @@ export function definePolicy<
           }
 
           try {
-            const result = await config.evaluate(
-              immutableContext,
-              policyConfig,
-              stage,
-            );
+            const value = await evaluate(immutableContext, policyConfig, stage);
 
-            // Ensure metadata includes policy ID and stage
+            const result = toPolicyResult(value);
+
+            if (!result) {
+              return failedEvaluation({
+                policyId: id,
+                stage,
+                error: new TypeError(
+                  'Policy did not return a { allowed: boolean } result',
+                ),
+              });
+            }
+
+            // policyId and stage last, so a policy can't spoof them
             return {
               ...result,
-              metadata: {
-                policyId: config.id,
-                stage,
-                ...result.metadata,
-              },
+              metadata: { ...result.metadata, policyId: id, stage },
             };
           } catch (error) {
-            // Results are returned to callers that serialize them to the
-            // browser, so keep the thrown detail in the server log only.
-            const logger = await getLogger();
-
-            logger.error(
-              { name: 'policy-evaluation', policyId: config.id, stage, error },
-              'Policy evaluation threw',
-            );
-
-            return deny({
-              code: 'POLICY_EVALUATION_ERROR',
-              message: 'common.genericError',
-              metadata: {
-                policyId: config.id,
-                stage,
-              },
-            });
+            return failedEvaluation({ policyId: id, stage, error });
           }
         },
 
@@ -250,5 +324,9 @@ export function definePolicy<
         },
       };
     },
-  };
+  });
+
+  definedPolicies.add(definition);
+
+  return definition;
 }

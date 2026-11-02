@@ -81,6 +81,7 @@
     "babel-plugin-react-compiler": "catalog:",
     "cssnano": "catalog:",
     "pino-pretty": "catalog:",
+    "shadcn": "catalog:",
     "supabase": "catalog:",
     "tailwindcss": "catalog:",
     "typescript": "catalog:"

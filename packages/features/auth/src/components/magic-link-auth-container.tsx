@@ -24,7 +24,7 @@ import { toast } from '@kit/ui/sonner';
 import { Trans } from '@kit/ui/trans';
 
 import { useCaptcha } from '../captcha/client';
-import { useLastAuthMethod } from '../hooks/use-last-auth-method';
+import { useRecordAuthMethod } from '../hooks/use-last-auth-method';
 import { EmailInput } from './email-input';
 import { LastAuthMethodHint } from './last-auth-method-hint';
 import { TermsAndConditionsFormField } from './terms-and-conditions-form-field';
@@ -49,7 +49,7 @@ export function MagicLinkAuthContainer({
   const t = useTranslations();
   const signInWithOtpMutation = useSignInWithOtp();
   const appEvents = useAppEvents();
-  const { recordAuthMethod } = useLastAuthMethod();
+  const recordAuthMethod = useRecordAuthMethod();
 
   const captchaLoading = !captcha.isReady;
 
@@ -65,9 +65,8 @@ export function MagicLinkAuthContainer({
   });
 
   const onSubmit = ({ email }: { email: string }) => {
-    const url = new URL(redirectUrl);
-
-    const emailRedirectTo = url.href;
+    // resolved at submit time, so render never reads `window`
+    const emailRedirectTo = new URL(redirectUrl, window.location.origin).href;
 
     const promise = async () => {
       await signInWithOtpMutation.mutateAsync({

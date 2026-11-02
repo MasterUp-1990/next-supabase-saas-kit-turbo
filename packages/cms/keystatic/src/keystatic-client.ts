@@ -2,7 +2,7 @@ import { Cms, CmsClient } from '@kit/cms-types';
 
 import { createKeystaticReader } from './create-reader';
 import { DocumentationEntryProps, PostEntryProps } from './keystatic.config';
-import { renderMarkdoc } from './markdoc';
+import { renderMarkdoc, toMarkdocNode } from './markdoc';
 import { resolveParents } from './resolve-parents';
 import { createContentItemComparator } from './sort-content-items';
 
@@ -158,7 +158,9 @@ class KeystaticClient implements CmsClient {
       : new Date();
 
     const content = await item.entry.content();
-    const html = params.fetchContent ? await renderMarkdoc(content.node) : [];
+    const html = params.fetchContent
+      ? await renderMarkdoc(toMarkdocNode(content.node))
+      : [];
 
     return {
       id: item.slug,
@@ -212,7 +214,9 @@ class KeystaticClient implements CmsClient {
       : new Date();
 
     const content = await item.entry.content();
-    const html = params.fetchContent ? await renderMarkdoc(content.node) : [];
+    const html = params.fetchContent
+      ? await renderMarkdoc(toMarkdocNode(content.node))
+      : [];
 
     return {
       id: item.slug,

@@ -1,6 +1,6 @@
 'use client';
 
-import { getSafeRedirectPath } from '@kit/shared/utils';
+import { getSafeRedirectPath } from '@kit/shared/safe-redirect';
 import { useSignOut } from '@kit/supabase/hooks/use-sign-out';
 import { Button } from '@kit/ui/button';
 import { Trans } from '@kit/ui/trans';

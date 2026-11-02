@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { getTranslations } from 'next-intl/server';
 
 import { SignInMethodsContainer } from '@kit/auth/sign-in';
-import { getSafeRedirectPath } from '@kit/shared/utils';
+import { getSafeRedirectPath } from '@kit/shared/safe-redirect';
 import { Button } from '@kit/ui/button';
 import { Heading } from '@kit/ui/heading';
 import { Skeleton } from '@kit/ui/skeleton';

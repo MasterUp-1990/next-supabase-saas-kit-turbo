@@ -9,6 +9,8 @@ The Next.js Supabase Turbo kit provides a secure way to include [CSP headers](ht
 
 {% sequence title="Steps to configure CSP" description="Learn how to configure CSP in the Next.js Supabase Turbo kit." %}
 
+[Default security headers](#default-security-headers)
+
 [How to enable a strict CSP](#how-to-enable-a-strict-csp)
 
 [Strict CSP and static rendering](#strict-csp-and-static-rendering)
@@ -20,6 +22,27 @@ The Next.js Supabase Turbo kit provides a secure way to include [CSP headers](ht
 [Modifying the default CSP configuration](#modifying-the-default-csp-configuration)
 
 {% /sequence %}
+
+## Default security headers
+
+Whether or not strict CSP is enabled, `apps/web/proxy.ts` sends these headers on every page response:
+
+| Header | Value |
+|--------|-------|
+| `X-Content-Type-Options` | `nosniff` |
+| `X-Frame-Options` | `SAMEORIGIN` |
+| `Referrer-Policy` | `strict-origin-when-cross-origin` |
+| `Permissions-Policy` | `camera=(), microphone=(), geolocation=()` |
+| `Cross-Origin-Opener-Policy` | `same-origin` |
+| `Strict-Transport-Security` | `max-age=63072000` (production builds only) |
+
+They are defaults: a header already on the response is kept, so the stricter Nosecone values win when `ENABLE_STRICT_CSP=true`. To change one, edit `DEFAULT_SECURITY_HEADERS` in `apps/web/proxy.ts`. API routes (`/api/*`) are outside the proxy matcher and don't get them.
+
+{% callout type="warning" title="HSTS and subdomains (opt-in)" %}
+Browsers remember HSTS for two years. To also cover every subdomain, set `HSTS_HEADER` in `apps/web/proxy.ts` to `max-age=63072000; includeSubDomains`, but only once every subdomain of your domain serves HTTPS: browsers will refuse plain-HTTP subdomains for the whole `max-age`.
+{% /callout %}
+
+If your app needs the camera, microphone or geolocation, or is embedded in an iframe on another site, change `Permissions-Policy` or `X-Frame-Options` accordingly.
 
 ## How to enable a strict CSP
 

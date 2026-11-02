@@ -75,7 +75,8 @@ export const updateTeamAccountName = authActionClient
     }
 
     // 2. Rename. The trigger replaces the slug with one generated from the
-    //    name ('' for a non-Latin name), releasing the slug claimed above.
+    //    name ("team-<id>" for a name with nothing to transliterate),
+    //    releasing the slug claimed above.
     const { data: renamed, error: renameError } = await client
       .from('accounts')
       .update({ name })
@@ -93,8 +94,9 @@ export const updateTeamAccountName = authActionClient
     }
 
     // 3. Set the slug the team should end up with: the custom slug, or its
-    //    current slug when the new name slugifies to it — the trigger's
-    //    uniqueness check counts the team's own row and would add "-1".
+    //    current slug when the new name slugifies to it — before migration
+    //    20261029000000 the trigger's uniqueness check counted the team's own
+    //    row and added "-1".
     const targetSlug =
       newSlug ??
       (slugifyLikeTrigger(name) === current.slug ? current.slug : null);

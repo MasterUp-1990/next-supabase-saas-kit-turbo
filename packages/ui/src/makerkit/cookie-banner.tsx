@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useMemo, useState } from 'react';
+import { Suspense, use, useCallback, useMemo, useState } from 'react';
+import { browser } from 'react-dom';
 
 import { Button } from '../shadcn/button';
 import { Dialog, DialogContent } from '../shadcn/dialog';
@@ -16,12 +17,22 @@ enum ConsentStatus {
   Unknown = 'unknown',
 }
 
+/**
+ * Renders in the browser only, after hydration: consent lives in
+ * localStorage, so a server render would not match.
+ */
 export function CookieBanner() {
-  const { status, accept, reject } = useCookieConsent();
+  return (
+    <Suspense fallback={null}>
+      <CookieBannerDialog />
+    </Suspense>
+  );
+}
 
-  if (!isBrowser()) {
-    return null;
-  }
+function CookieBannerDialog() {
+  use(browser('reads cookie consent from localStorage'));
+
+  const { status, accept, reject } = useCookieConsent();
 
   if (status !== ConsentStatus.Unknown) {
     return null;
@@ -93,24 +104,18 @@ export function useCookieConsent() {
   }, [clear, status, accept, reject]);
 }
 
+// called from event handlers only, so it always runs in the browser
 function storeStatusInLocalStorage(status: ConsentStatus) {
-  if (!isBrowser()) {
-    return;
-  }
-
   localStorage.setItem(COOKIE_CONSENT_STATUS, status);
 }
 
+// `useCookieConsent` may render on the server, where there is no localStorage
 function getStatusFromLocalStorage() {
-  if (!isBrowser()) {
+  if (typeof localStorage === 'undefined') {
     return ConsentStatus.Unknown;
   }
 
   const status = localStorage.getItem(COOKIE_CONSENT_STATUS) as ConsentStatus;
 
   return status ?? ConsentStatus.Unknown;
-}
-
-function isBrowser() {
-  return typeof window !== 'undefined';
 }

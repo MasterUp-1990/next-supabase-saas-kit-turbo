@@ -9,6 +9,15 @@ import {
 import { MarkdocNodes } from './markdoc-nodes';
 
 /**
+ * @name toMarkdocNode
+ * @description Keystatic bundles its own Markdoc version, so the nodes it
+ * returns are typed against that copy. The AST shape is the same at runtime.
+ */
+export function toMarkdocNode(node: unknown) {
+  return node as Node;
+}
+
+/**
  * @name renderMarkdoc
  * @description Renders a Markdoc tree to React
  */

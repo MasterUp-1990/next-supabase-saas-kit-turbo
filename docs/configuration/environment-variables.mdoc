@@ -45,6 +45,7 @@ NEXT_PUBLIC_SITE_URL=https://example.com
 NEXT_PUBLIC_PRODUCT_NAME=Makerkit
 NEXT_PUBLIC_SITE_TITLE="Makerkit - Build SaaS Faster"
 NEXT_PUBLIC_SITE_DESCRIPTION="Production-ready SaaS starter kit"
+# Deprecated: set DEFAULT_LOCALE in packages/i18n/src/default-locale.ts
 NEXT_PUBLIC_DEFAULT_LOCALE=en
 ```
 
@@ -54,7 +55,7 @@ NEXT_PUBLIC_DEFAULT_LOCALE=en
 | `NEXT_PUBLIC_PRODUCT_NAME` | Yes | Product name shown in UI |
 | `NEXT_PUBLIC_SITE_TITLE` | Yes | Browser title and SEO |
 | `NEXT_PUBLIC_SITE_DESCRIPTION` | Yes | Meta description |
-| `NEXT_PUBLIC_DEFAULT_LOCALE` | No | Default language (default: `en`) |
+| `NEXT_PUBLIC_DEFAULT_LOCALE` | No | Deprecated. Overrides the default language set in `packages/i18n/src/default-locale.ts` (`en`) |
 
 ### Theme
 

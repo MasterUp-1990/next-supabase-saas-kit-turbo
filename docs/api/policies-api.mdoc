@@ -202,6 +202,18 @@ if (!result.allowed) {
 }
 ```
 
+### Policies fail closed
+
+A policy that throws, rejects, or returns anything other than a `{ allowed: boolean }` result (for example `undefined`, `true` or `{ allowed: 'yes' }`) is denied with code `POLICY_EVALUATION_ERROR` and the message `common.genericError`. The raw error is written to the server log only, never to the result, because results can reach the browser. This applies to `definePolicy` policies and to plain functions passed to `evaluatePolicies` / `evaluateGroups`.
+
+Other guarantees:
+
+- `metadata.policyId` and `metadata.stage` are set by the kit; a policy can't override them.
+- A deny without a reason adds `'common.genericError'` to `reasons`, so `reasons[0]` is never empty.
+- An operator other than `'ALL'` or `'ANY'` throws.
+- `definePolicy({ stages: [] })` throws: omit `stages` to run a policy in every stage.
+- `registerPolicy` only accepts results of `definePolicy`, and definitions are frozen, so a registered policy can't be patched later.
+
 ## Performance Optimizations
 
 ### 1. Lazy Context Building
